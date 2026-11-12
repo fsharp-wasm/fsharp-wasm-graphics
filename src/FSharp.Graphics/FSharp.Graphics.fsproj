@@ -10,7 +10,7 @@
     <Description>Pure-F# retained-mode graphics stack: SDF primitives, scene graph, layout, diff, linear encoder, and TEA runtime.</Description>
     <Authors>FSharp.Graphics Contributors</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/aiqs4/fsharp-wasm-graphics</RepositoryUrl>
+    <RepositoryUrl>https://github.com/fsharp-wasm/fsharp-wasm-graphics</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
