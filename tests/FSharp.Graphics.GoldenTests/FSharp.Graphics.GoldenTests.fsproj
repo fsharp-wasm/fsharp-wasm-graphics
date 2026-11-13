@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Png.fs" />
     <Compile Include="Rasterizer.fs" />
     <Compile Include="GoldenFramework.fs" />
     <Compile Include="GoldenScenes.fs" />
@@ -17,6 +16,8 @@
     <ProjectReference Include="../../src/FSharp.Graphics.Core/FSharp.Graphics.Core.fsproj" />
     <ProjectReference Include="../../src/FSharp.Graphics.Primitives/FSharp.Graphics.Primitives.fsproj" />
     <ProjectReference Include="../../src/FSharp.Graphics.Scene/FSharp.Graphics.Scene.fsproj" />
+    <!-- the PNG encoder lives in the host (it used to be copied here) -->
+    <ProjectReference Include="../../src/FSharp.Graphics.Host/FSharp.Graphics.Host.fsproj" />
     <ProjectReference Include="../../lib/GlyphAura/src/GlyphAura/GlyphAura.fsproj" />
   </ItemGroup>
   <ItemGroup>
