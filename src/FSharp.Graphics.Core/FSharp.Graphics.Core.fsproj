@@ -6,7 +6,8 @@
     <Nullable>enable</Nullable>
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+      <IsPackable>true</IsPackable>
+</PropertyGroup>
   <ItemGroup>
     <Compile Include="Types.fs" />
     <Compile Include="Paint.fs" />

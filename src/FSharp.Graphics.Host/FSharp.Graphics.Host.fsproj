@@ -9,7 +9,8 @@
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);FS3370;FS3391</NoWarn>
-  </PropertyGroup>
+      <IsPackable>true</IsPackable>
+</PropertyGroup>
   <ItemGroup>
     <Compile Include="Reader.fs" />
     <Compile Include="Fonts.fs" />

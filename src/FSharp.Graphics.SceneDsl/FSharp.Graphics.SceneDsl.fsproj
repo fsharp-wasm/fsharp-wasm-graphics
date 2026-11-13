@@ -7,7 +7,8 @@
     <NuGetAudit>false</NuGetAudit>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-  </PropertyGroup>
+      <IsPackable>true</IsPackable>
+</PropertyGroup>
   <ItemGroup>
     <Compile Include="Num.fs" />
     <Compile Include="Optimize.fs" />

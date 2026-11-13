@@ -16,8 +16,4 @@
     <ProjectReference Include="../../src/FSharp.Graphics.Wasm/FSharp.Graphics.Wasm.fsproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Fable.Core" Version="4.*" />
-  </ItemGroup>
-
 </Project>

@@ -6,7 +6,8 @@
     <Nullable>enable</Nullable>
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+      <IsPackable>true</IsPackable>
+</PropertyGroup>
   <ItemGroup>
     <Compile Include="Animation.fs" />
     <Compile Include="Scene.fs" />
