@@ -1,0 +1,9 @@
+<Project>
+  <!-- Where FSharp.Wasm.Core is — the F# base library (collections, host-interop attributes) that programs compiled by
+       fsharp-wasm are built with.  FSHARP_WASM_CORE_DIR: a checkout of fsharp-wasm-core; otherwise the copy that comes with the
+       compiler submodule (tools/fsharp-wasm/core).  Only fsharp-wasm's own build reads it. -->
+  <PropertyGroup>
+    <FSharpWasmCoreDir Condition="'$(FSharpWasmCoreDir)' == '' and '$(FSHARP_WASM_CORE_DIR)' != ''">$(FSHARP_WASM_CORE_DIR)/FSharp.Wasm.Core</FSharpWasmCoreDir>
+    <FSharpWasmCoreDir Condition="'$(FSharpWasmCoreDir)' == ''">$(MSBuildThisFileDirectory)tools/fsharp-wasm/core/FSharp.Wasm.Core</FSharpWasmCoreDir>
+  </PropertyGroup>
+</Project>

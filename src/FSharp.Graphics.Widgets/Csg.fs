@@ -40,7 +40,8 @@ type CsgShape(op: CsgOp, a: ISdfShape, b: ISdfShape) =
                 let h = Scalar.max' (k - abs (d1 - d2)) 0.0f / k
                 Scalar.min' d1 d2 - h * h * k * 0.25f
         member _.Bounds = bounds
-        member _.CacheKey = HashCode.Combine(tag, a.CacheKey, b.CacheKey, k)
+        // a plain mix of the parts (System.HashCode is not available on every target)
+        member _.CacheKey = ((tag * 31 + a.CacheKey) * 31 + b.CacheKey) * 31 + hash k
         member _.Geometry = GOpaque bounds
 
 module Csg =

@@ -67,6 +67,13 @@ type Msg =
 
 module Model =
     let variants = [ Button.Primary; Button.Secondary; Button.Danger; Button.Ghost ]
+    /// The name of a variant as the inspector's dropdown lists it (what `%A` prints for a case without fields).
+    let variantName (v: Button.Variant) : string =
+        match v with
+        | Button.Primary -> "Primary"
+        | Button.Secondary -> "Secondary"
+        | Button.Danger -> "Danger"
+        | Button.Ghost -> "Ghost"
     let snap (v: float32) = MathF.Round(v / 8.0f) * 8.0f
 
     let newNode (id: int) (kind: Kind) (x: float32) (y: float32) : Node =

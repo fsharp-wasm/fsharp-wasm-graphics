@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Browser host for FSharp.Graphics: the GUI builder (TEA + Widgets) drawn onto one <canvas> through the
+       functions of runtime/gfx.js (fsharp-wasm-runtime).  Compiled to WasmGC by the fsharp-wasm compiler:
+         bash build/build-browser.sh
+       Dependencies stay in their own projects; only this project's functions become module exports. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <RootNamespace>FSharp.Graphics.Browser</RootNamespace>
+    <NuGetAudit>false</NuGetAudit>
+    <NoWarn>$(NoWarn);NU1900;NETSDK1188</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- [<Import>] and nativeOnly: the stub of FSharp.Wasm.Core -->
+    <Compile Include="$(FSharpWasmCoreDir)/Interop.fs" />
+    <Compile Include="Gfx.fs" />
+    <Compile Include="CanvasText.fs" />
+    <Compile Include="Emit.fs" />
+    <Compile Include="CanvasSink.fs" />
+    <Compile Include="GraphicsEditor.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FSharp.Graphics.GuiBuilder/FSharp.Graphics.GuiBuilder.fsproj" />
+  </ItemGroup>
+</Project>
