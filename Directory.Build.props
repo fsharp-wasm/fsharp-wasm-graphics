@@ -6,4 +6,26 @@
     <FSharpWasmCoreDir Condition="'$(FSharpWasmCoreDir)' == '' and '$(FSHARP_WASM_CORE_DIR)' != ''">$(FSHARP_WASM_CORE_DIR)/FSharp.Wasm.Core</FSharpWasmCoreDir>
     <FSharpWasmCoreDir Condition="'$(FSharpWasmCoreDir)' == ''">$(MSBuildThisFileDirectory)tools/fsharp-wasm/core/FSharp.Wasm.Core</FSharpWasmCoreDir>
   </PropertyGroup>
+
+  <!-- Packages: the library projects of src/ opt in with <IsPackable>true</IsPackable>; demos, tests and hosts that bring a
+       third-party backend do not.  `bash build/pack.sh` packs them. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <Version Condition="'$(Version)' == ''">0.1.0-preview</Version>
+    <Authors>The fsharp-wasm contributors</Authors>
+    <Copyright>Copyright 2026 The fsharp-wasm contributors</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/fsharp-wasm/fsharp-wasm-graphics</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/fsharp-wasm/fsharp-wasm-graphics</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+  <!-- A package carries its sources too: a program compiled by fsharp-wasm compiles the libraries it uses together with its own
+       code (the dll is for .NET).  The `fable/` folder is where the front end's project cracker looks for them. -->
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <Content Include="*.fsproj;**/*.fs" Exclude="obj/**;bin/**" Pack="true" PackagePath="fable/" />
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" Condition="Exists('$(MSBuildThisFileDirectory)README.md')" />
+    <None Include="$(MSBuildThisFileDirectory)LICENSE;$(MSBuildThisFileDirectory)NOTICE" Pack="true" PackagePath="/" />
+  </ItemGroup>
 </Project>

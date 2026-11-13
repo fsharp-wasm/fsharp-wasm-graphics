@@ -5,6 +5,10 @@ All notable changes to this repository are documented here (newest first).
 ## [Unreleased]
 
 ### Added
+- **Packages.** The nine library projects (`FSharp.Math`, `FSharp.Graphics.Core`, `Primitives`, `Scene`, `SceneDsl`, `Render`, `Tea`,
+  `Widgets`, `Host`) are packable: `bash build/pack.sh` makes the `.nupkg` files (dll, XML docs and the sources under `fable/` for programs
+  compiled by fsharp-wasm), the CI packs on every push and uploads them as an artifact. Nothing is published.
+- `README.md`.
 - **Browser host** (`demo/FSharp.Graphics.Browser`): the GUI builder compiled to WebAssembly GC and drawn onto one canvas
   through the functions of `runtime/gfx.js` (fsharp-wasm-runtime), which is also where its page lives. Exports `start`,
   `onResize`, `onPointer`, `onWheel`, `onKey`, `frame`; `bash build/build-browser.sh` builds it.
@@ -13,6 +17,10 @@ All notable changes to this repository are documented here (newest first).
 - Apache License 2.0 (`LICENSE`, `NOTICE`; the submodules keep their own).
 
 ### Changed
+- The libraries have no third-party dependency (only the own ones and FSharp.Core); the old Wasm project no longer takes `Fable.Core` from
+  NuGet but the `Interop.fs` of FSharp.Wasm.Core. SkiaSharp and Silk.NET remain in the optional Skia host and in the desktop demo,
+  xunit/FsCheck in the tests.
+- CI: .NET 10 (it built with the 8.0 setup action), runnable by hand.
 - `FSharp.Math` imports the compile list of `FSharp.Wasm.Core` (the portable `Dictionary`, `HashSet`, `Queue`, `Stack`, `Map`,
   `Set`) for the WasmGC build; `Directory.Build.props` names its directory once.
 - Library code that the compiler could not translate was rewritten in a form that is equally plain on .NET: no

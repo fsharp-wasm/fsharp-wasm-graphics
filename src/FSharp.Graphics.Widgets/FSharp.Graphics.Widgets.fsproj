@@ -6,7 +6,8 @@
     <Optimize>true</Optimize>
     <NuGetAudit>false</NuGetAudit>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+      <IsPackable>true</IsPackable>
+</PropertyGroup>
   <ItemGroup>
     <Compile Include="Theme.fs" />
     <Compile Include="Csg.fs" />

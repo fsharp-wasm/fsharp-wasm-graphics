@@ -6,7 +6,8 @@
     <Nullable>enable</Nullable>
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+      <IsPackable>true</IsPackable>
+</PropertyGroup>
   <!-- Compiled by fsharp-wasm (WasmGC) only.  FSharp.Math is the root of the dependency graph, so the portable collections of
        FSharp.Wasm.Core (Dictionary, HashSet, Queue, Stack, Map, Set: F# sources, not BCL types) are compiled once, first, and
        every project above sees them.  FSharpWasmCoreDir comes from the Directory.Build.props of this repository. -->

@@ -16,9 +16,10 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <!-- Fable.Core provides [<Import>], [<CompiledName>], nativeOnly etc. -->
+  <!-- [<Import>] and nativeOnly: the stub of FSharp.Wasm.Core (no NuGet package; the tests below see the module through this
+       assembly) -->
   <ItemGroup>
-    <PackageReference Include="Fable.Core" Version="4.*" />
+    <Compile Include="$(FSharpWasmCoreDir)/Interop.fs" />
   </ItemGroup>
 
   <!-- ── FSharp.Math ── -->

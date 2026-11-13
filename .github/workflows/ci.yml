@@ -1,5 +1,8 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -12,7 +15,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Build
         run: dotnet build FSharp.Graphics.slnx -c Release
@@ -28,6 +31,17 @@ jobs:
 
       - name: WASM Tests (.NET mode)
         run: dotnet run --project tests/FSharp.Graphics.WasmTests/FSharp.Graphics.WasmTests.fsproj -c Release
+
+      # The libraries as NuGet packages (dll, XML docs, and the sources for programs compiled by fsharp-wasm).  A preview version
+      # from the run number; nothing is published — a release takes the packages from here.
+      - name: Pack
+        run: bash build/pack.sh 0.1.0-ci.${{ github.run_number }}
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: dist/nupkg/*.nupkg
 
       - name: Generate Actual PNGs
         run: dotnet run --project tests/FSharp.Graphics.GoldenTests/FSharp.Graphics.GoldenTests.fsproj -c Release -- --actual-dir .golden-actual
