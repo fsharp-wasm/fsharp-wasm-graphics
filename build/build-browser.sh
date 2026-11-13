@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# build-browser.sh — compile the browser host (the GUI builder, drawn onto one <canvas>) to WasmGC.
+# build-browser.sh — compile the browser hosts (each draws onto one <canvas>) to WasmGC.
 #
 #   bash build/build-browser.sh [--out dist/browser]
 #
-# Result: <out>/GraphicsEditor.wasm.  The page that runs it, and the glue it imports (runtime/gfx.js), are in
-# fsharp-wasm-runtime (demos/graphics-editor); that repository builds this project itself when it is checked out next to
-# this one.
+# Result: <out>/GraphicsEditor.wasm (the GUI builder, demo/FSharp.Graphics.Browser) and <out>/SceneGallery.wasm (the
+# thirteen scenes, demo/FSharp.Graphics.Browser.Gallery).  The pages that run them, and the glue they import
+# (runtime/gfx.js), are in fsharp-wasm-runtime (demos/graphics-editor, demos/graphics-gallery); that repository builds
+# these projects itself when it is checked out next to this one.
 #
 # The compiler, first hit wins:
 #   FSHARP_WASM_BIN   a release binary of fsharp-wasm (it carries FSharp.Wasm.Core beside it)
@@ -24,16 +25,23 @@ while [[ $# -gt 0 ]]; do
 done
 command -v wasm-tools >/dev/null || { echo "wasm-tools not found (cargo install wasm-tools)" >&2; exit 1; }
 
-PROJECT="$ROOT/demo/FSharp.Graphics.Browser"
+# project directory : module the compiler names after the last file of the project
+HOSTS=("FSharp.Graphics.Browser:GraphicsEditor" "FSharp.Graphics.Browser.Gallery:SceneGallery")
 mkdir -p "$OUT"
 
-if [[ -n "${FSHARP_WASM_BIN:-}" ]]; then
-  "$FSHARP_WASM_BIN" "$PROJECT" --outDir "$OUT" --noCache
-else
+if [[ -z "${FSHARP_WASM_BIN:-}" ]]; then
   CLI="$ROOT/tools/fsharp-wasm/tools/FSharp.Wasm.Cli"
   [[ -d "$CLI" ]] || { echo "no compiler: set FSHARP_WASM_BIN, or init tools/fsharp-wasm" >&2; exit 1; }
-  dotnet run -c Release --project "$CLI" -- "$PROJECT" --outDir "$OUT" --noCache
 fi
 
-wasm-tools validate "$OUT/GraphicsEditor.wasm" --features all
-echo "built: $OUT/GraphicsEditor.wasm ($(wc -c < "$OUT/GraphicsEditor.wasm") bytes)"
+for host in "${HOSTS[@]}"; do
+  PROJECT="$ROOT/demo/${host%%:*}"
+  MODULE="${host##*:}"
+  if [[ -n "${FSHARP_WASM_BIN:-}" ]]; then
+    "$FSHARP_WASM_BIN" "$PROJECT" --outDir "$OUT" --noCache
+  else
+    dotnet run -c Release --project "$CLI" -- "$PROJECT" --outDir "$OUT" --noCache
+  fi
+  wasm-tools validate "$OUT/$MODULE.wasm" --features all
+  echo "built: $OUT/$MODULE.wasm ($(wc -c < "$OUT/$MODULE.wasm") bytes)"
+done
