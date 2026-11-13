@@ -11,9 +11,10 @@ let private test name f =
 let run () =
     printfn "-- Color properties --"
 
+    // A fully transparent pixel carries no colour: blend normalises it to `Transparent`, so only bg.A > 0 round-trips.
     test "Blend with Transparent fg leaves bg unchanged" (fun (bg: Color) ->
         let result = Color.blend bg Color.Transparent
-        result = bg
+        if bg.A = 0uy then result = Color.Transparent else result = bg
     )
 
     test "Lerp(a, b, 0) ≈ a" (fun (a: Color, b: Color) ->

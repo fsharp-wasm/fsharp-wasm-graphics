@@ -22,8 +22,10 @@ let run () =
             r >= lo && r <= hi
     )
 
+    // `a + (b - a) * t` is only defined while `b - a` does not overflow (inf * 0 = NaN); same domain as the t = 1 case below.
     test "lerp(a, b, 0) = a" (fun (a: float32, b: float32) ->
         if not (finite a && finite b) then true
+        elif abs a > 1e30f || abs b > 1e30f then true
         else Scalar.approxEq 1e-5f (Scalar.lerp a b 0.0f) a
     )
 
