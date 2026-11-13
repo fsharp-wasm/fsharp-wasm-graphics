@@ -110,11 +110,12 @@ let run () =
     )
 
     // Law 8: Determinant of composition
+    // float32 cancellation error scales with the operands (‖A‖²·‖B‖²), not with the result: measured worst case over
+    // 5M samples is 4.2e-8 of that product (≈ 0.7 ε); 1e-6 keeps ~24× headroom and still catches a wrong formula.
     test "det(A×B) ≈ det(A) × det(B)" (fun (a: Mat3x2, b: Mat3x2) ->
+        let n2 (m: Mat3x2) = m.M11 * m.M11 + m.M12 * m.M12 + m.M21 * m.M21 + m.M22 * m.M22
         let detAB = Mat3x2.determinant (Mat3x2.multiply a b)
         let detA_detB = Mat3x2.determinant a * Mat3x2.determinant b
-        if not (finite detAB && finite detA_detB) then true
-        elif abs detAB < 1e6f && abs detA_detB < 1e6f then
-            Scalar.approxEq 1.0f detAB detA_detB
-        else true
+        not (finite detAB && finite detA_detB)
+        || Scalar.approxEq (1e-6f * (1.0f + n2 a * n2 b)) detAB detA_detB
     )
