@@ -32,7 +32,7 @@ Before it can go, those have to be ported to the split projects or dropped on pu
 and `build/build-wasm.sh` are the same story one level up: the script names paths that no longer exist
 (`src/Fable.WasmGc.fsproj`, `tools/fsharp-wasm-cli`); `build/build-browser.sh` compiles the split projects directly.
 
-## Open — GlyphAura (separate repository, MIT) against `Primitives` / `Core`
+## Open — GlyphAura (separate repository, Apache-2.0) against `Primitives` / `Core`
 
 GlyphAura started as the text engine and carries its own copies of the drawing primitives:
 
