@@ -6,23 +6,22 @@ open FSharp.Math
 /// Result of comparing actual vs golden
 type CompareResult =
     | Pass
-    | Fail of maxDelta: int * failCount: int * totalPixels: int
+    | Fail of maxDelta: int * failBytes: int * totalBytes: int
     | MissingGolden
 
 /// Compare two RGBA byte arrays pixel-by-pixel within tolerance
 let compare (tolerance: int) (actual: byte array) (golden: byte array) : CompareResult =
     if actual.Length <> golden.Length then
-        Fail(255, actual.Length / 4, actual.Length / 4)
+        Fail(255, actual.Length, actual.Length)
     else
         let mutable maxDelta = 0
         let mutable failCount = 0
-        let pixels = actual.Length / 4
         for i = 0 to actual.Length - 1 do
             let delta = abs (int actual.[i] - int golden.[i])
             if delta > maxDelta then maxDelta <- delta
             if delta > tolerance then failCount <- failCount + 1
         if failCount = 0 then Pass
-        else Fail(maxDelta, failCount, pixels)
+        else Fail(maxDelta, failCount, actual.Length)
 
 let saveRaw (path: string) (pixels: byte array) =
     File.WriteAllBytes(path, pixels)
@@ -67,8 +66,8 @@ let runGoldenTest
             | Pass ->
                 printfn "  PASS:             %s" name
                 true
-            | Fail(maxDelta, failCount, totalPixels) ->
-                printfn "  FAIL:             %s (max delta=%d, %d/%d pixels)" name maxDelta failCount totalPixels
+            | Fail(maxDelta, failBytes, totalBytes) ->
+                printfn "  FAIL:             %s (max delta=%d, %d/%d bytes differ)" name maxDelta failBytes totalBytes
                 false
             | MissingGolden ->
                 printfn "  MISSING GOLDEN:   %s" name

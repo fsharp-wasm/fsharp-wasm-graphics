@@ -65,7 +65,7 @@ type Framebuffer(width: int, height: int) =
             let srcCol : Color =
                 { R = src.Pixels.[so]; G = src.Pixels.[so+1]
                   B = src.Pixels.[so+2]; A = src.Pixels.[so+3] }
-            let scaled = Color.withAlpha (float32 srcCol.A / 255.0f * opacity) srcCol
+            let scaled = Color.withAlpha opacity srcCol
             let dst = fb.GetPixel(i % width, i / width)
             let blended = Color.blend dst scaled
             fb.SetPixel(i % width, i / width, blended)
@@ -215,7 +215,7 @@ let renderShape (fb: Framebuffer) (shape: PrimitiveShape) (clip: Rect voption) =
             let alpha = Scalar.clamp 0.0f 1.0f (0.5f - d)
             if alpha > 0.004f then
                 let baseColor = samplePaint fill p bounds
-                let col = Color.withAlpha (float32 baseColor.A / 255.0f * alpha) baseColor
+                let col = Color.withAlpha alpha baseColor
                 fb.Composite(px, py, col, clip)
 
     // Render inner shadow (above fill, below stroke)
@@ -237,7 +237,7 @@ let renderShape (fb: Framebuffer) (shape: PrimitiveShape) (clip: Rect voption) =
                         match stroke.Paint with
                         | Solid c -> c
                         | _ -> Color.Black
-                    let col = Color.withAlpha (float32 baseColor.A / 255.0f * edgeAlpha) baseColor
+                    let col = Color.withAlpha edgeAlpha baseColor
                     fb.Composite(px, py, col, clip)
     | None -> ()
 
@@ -316,7 +316,7 @@ let renderText (fb: Framebuffer) (text: string) (style: FSharp.Graphics.Core.Tex
                         let edgeB = Scalar.clamp 0.0f 1.0f (ey * 10.0f) * Scalar.clamp 0.0f 1.0f ((1.0f - ey) * 10.0f)
                         edgeA * edgeB
                     if alpha > 0.004f then
-                        let col = Color.withAlpha (float32 textColor.A / 255.0f * alpha) textColor
+                        let col = Color.withAlpha alpha textColor
                         fb.Composite(gx + dx, gy + dy, col, clip)
         // Return the pool buffer
         System.Buffers.ArrayPool.Shared.Return(result.GlyphBuffer)
