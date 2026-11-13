@@ -20,6 +20,13 @@ module Gfx =
     /// Multiplies the current alpha (a layer's group alpha).
     [<Import("layer", "runtime/gfx.js")>]
     let layer (alpha: float) (blend: int) (blurPx: float) : unit = nativeOnly
+    /// A 4x5 colour matrix for the current layer: matrixBegin, 20 x matrixValue (row by row, offsets in 0..1), matrixUse.
+    [<Import("matrixBegin", "runtime/gfx.js")>]
+    let matrixBegin () : unit = nativeOnly
+    [<Import("matrixValue", "runtime/gfx.js")>]
+    let matrixValue (v: float) : unit = nativeOnly
+    [<Import("matrixUse", "runtime/gfx.js")>]
+    let matrixUse () : unit = nativeOnly
     [<Import("clip", "runtime/gfx.js")>]
     let clip (x: float) (y: float) (w: float) (h: float) : unit = nativeOnly
     /// Clip to the current path.
@@ -72,6 +79,10 @@ module Gfx =
 
     [<Import("cursor", "runtime/gfx.js")>]
     let cursor (kind: int) : unit = nativeOnly
+    /// Tell the page something that is not drawing: a `gfx` event on the canvas (detail = { kind, a, b }).  A module can send
+    /// strings out but not receive them, so this is how it names its parts (the scenes of the gallery, the selected one).
+    [<Import("announce", "runtime/gfx.js")>]
+    let announce (kind: string) (a: string) (b: string) : unit = nativeOnly
     /// The key of the key event being delivered.
     [<Import("pendingKey", "runtime/gfx.js")>]
     let pendingKey () : string = nativeOnly

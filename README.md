@@ -23,8 +23,9 @@ Model ──View──▶ Scene ──Resolve──▶ positioned Scene ──Em
 | `FSharp.Graphics.Host` | fonts, the software rasterizer, a PNG encoder (all own code) |
 | `FSharp.Graphics.Host.Skia` | a Skia host (needs SkiaSharp; optional, not packed) |
 
-`demo/` holds the demos, among them the GUI builder and its browser host (`demo/FSharp.Graphics.Browser`, compiled to WasmGC by
-`bash build/build-browser.sh`, drawn onto one canvas through `runtime/gfx.js` of fsharp-wasm-runtime).
+`demo/` holds the demos, among them the GUI builder and its browser host (`demo/FSharp.Graphics.Browser`) and the scene gallery
+(`demo/FSharp.Graphics.Browser.Gallery`, the thirteen scenes of `FSharp.Graphics.Scenes`). `bash build/build-browser.sh` compiles both
+to WasmGC; they draw onto one canvas through `runtime/gfx.js` of fsharp-wasm-runtime, whose pages run them live.
 `docs/consolidation.md` lists what is still duplicated and the order to remove it.
 
 ## Build, test, pack

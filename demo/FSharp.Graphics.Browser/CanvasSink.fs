@@ -181,4 +181,8 @@ module CanvasSink =
             | PushLayer lp ->
                 Gfx.save ()
                 Gfx.layer (float lp.Alpha) (blendIndex lp.Blend) (float lp.BlurSigma)
+                if lp.Filter.Length = 20 then
+                    Gfx.matrixBegin ()
+                    for v in lp.Filter do Gfx.matrixValue (float v)
+                    Gfx.matrixUse ()
             | PopLayer -> Gfx.restore ()
