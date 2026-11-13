@@ -49,7 +49,7 @@ let runGoldenTest
     let actualPng = Path.Combine(actualDir, name + ".png")
 
     // Always save the actual PNG
-    let pngBytes = Png.encode pixels width height
+    let pngBytes = FSharp.Graphics.Host.Png.encode width height pixels
     File.WriteAllBytes(actualPng, pngBytes)
 
     if generateGolden then
