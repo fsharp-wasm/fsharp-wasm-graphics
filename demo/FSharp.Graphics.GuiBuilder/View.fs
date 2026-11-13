@@ -162,7 +162,7 @@ module View =
                 childIf (n.Kind = KButton)
                     (field ui "Variant"
                         (Dropdown.view ui "insp-variant"
-                            { Options = Model.variants |> List.map (sprintf "%A"); Selected = List.findIndex ((=) n.Variant) Model.variants
+                            { Options = Model.variants |> List.map Model.variantName; Selected = List.findIndex ((=) n.Variant) Model.variants
                               Open = m.VariantOpen; Width = 220.0f
                               OnToggle = (fun () -> send ToggleVariantMenu)
                               OnSelect = fun i -> send (SetVariant(n.Id, Model.variants.[i])) }))

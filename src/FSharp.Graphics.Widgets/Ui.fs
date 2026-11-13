@@ -114,21 +114,49 @@ module Ui =
 /// Minimal single-line text editing for hosts that only deliver key *names*
 /// (Silk.NET style: "A", "Space", "Number1", "Backspace"). Caret is always at the end.
 module TextEdit =
-    let private punct =
-        dict [ "Space", " "; "Period", "."; "Comma", ","; "Minus", "-"; "Slash", "/"; "Semicolon", ";"
-               "Apostrophe", "'"; "Equal", "="; "Underscore", "_" ]
+    /// The character a punctuation key name types.
+    let private punct (key: string) : string option =
+        match key with
+        | "Space" -> Some " "
+        | "Period" -> Some "."
+        | "Comma" -> Some ","
+        | "Minus" -> Some "-"
+        | "Slash" -> Some "/"
+        | "Semicolon" -> Some ";"
+        | "Apostrophe" -> Some "'"
+        | "Equal" -> Some "="
+        | "Underscore" -> Some "_"
+        | _ -> None
 
-    let private shifted =
-        dict [ "1", "!"; "2", "@"; "3", "#"; "4", "$"; "5", "%"; "6", "^"; "7", "&"; "8", "*"; "9", "("; "0", ")"
-               "-", "_"; "=", "+"; ";", ":"; "'", "\""; ",", "<"; ".", ">"; "/", "?" ]
+    /// The character a character types while Shift is held (US layout), for the keys that are not letters.
+    let private shifted (c: string) : string option =
+        match c with
+        | "1" -> Some "!"
+        | "2" -> Some "@"
+        | "3" -> Some "#"
+        | "4" -> Some "$"
+        | "5" -> Some "%"
+        | "6" -> Some "^"
+        | "7" -> Some "&"
+        | "8" -> Some "*"
+        | "9" -> Some "("
+        | "0" -> Some ")"
+        | "-" -> Some "_"
+        | "=" -> Some "+"
+        | ";" -> Some ":"
+        | "'" -> Some "\""
+        | "," -> Some "<"
+        | "." -> Some ">"
+        | "/" -> Some "?"
+        | _ -> None
 
     let keyChar (shift: bool) (key: string) : string option =
         let plain =
             if key.Length = 1 && Char.IsLetterOrDigit key.[0] then Some (key.ToLowerInvariant())
             elif (key.StartsWith "Number" || key.StartsWith "Keypad") && key.Length = 7 && Char.IsDigit key.[6] then Some (key.Substring 6)
-            else match punct.TryGetValue key with | true, c -> Some c | _ -> None
+            else punct key
         match plain with
-        | Some c when shift -> (match shifted.TryGetValue c with | true, u -> Some u | _ -> Some (c.ToUpperInvariant()))
+        | Some c when shift -> (match shifted c with Some u -> Some u | None -> Some (c.ToUpperInvariant()))
         | other -> other
 
     /// Apply one key to the text (`shift` = Shift currently held, tracked in `UiState.Shift`).

@@ -7,6 +7,10 @@
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <!-- Compiled by fsharp-wasm (WasmGC) only.  FSharp.Math is the root of the dependency graph, so the portable collections of
+       FSharp.Wasm.Core (Dictionary, HashSet, Queue, Stack, Map, Set: F# sources, not BCL types) are compiled once, first, and
+       every project above sees them.  FSharpWasmCoreDir comes from the Directory.Build.props of this repository. -->
+  <Import Project="$(FSharpWasmCoreDir)/FSharp.Wasm.Core.props" Condition="'$(FABLE_COMPILER_WASMGC)' == 'True'" />
   <ItemGroup>
     <Compile Include="Scalar.fs" />
     <Compile Include="Vec2.fs" />
