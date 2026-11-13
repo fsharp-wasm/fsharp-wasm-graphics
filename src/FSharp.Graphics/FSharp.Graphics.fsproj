@@ -9,7 +9,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Pure-F# retained-mode graphics stack: SDF primitives, scene graph, layout, diff, linear encoder, and TEA runtime.</Description>
     <Authors>FSharp.Graphics Contributors</Authors>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/fsharp-wasm/fsharp-wasm-graphics</RepositoryUrl>
   </PropertyGroup>
 

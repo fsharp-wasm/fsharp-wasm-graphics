@@ -1,0 +1,9 @@
+fsharp-wasm-graphics
+Copyright 2026 The fsharp-wasm contributors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Components that are not part of this work and keep their own licences:
+  lib/GlyphAura        git submodule (fsharp-glyph-aura), MIT — see lib/GlyphAura/LICENSE
+  tools/fsharp-wasm    git submodule (the compiler), MIT — see tools/fsharp-wasm/LICENSE
+  tools/fsharp         git submodule (patched F# compiler), MIT — see tools/fsharp/License.txt
