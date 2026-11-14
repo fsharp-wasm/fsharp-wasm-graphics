@@ -19,7 +19,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../FSharp.Graphics.Scenes/FSharp.Graphics.Scenes.fsproj" />
-    <ProjectReference Include="../FSharp.Graphics.GuiBuilder/FSharp.Graphics.GuiBuilder.fsproj" />
     <ProjectReference Include="../../src/FSharp.Graphics.Host/FSharp.Graphics.Host.fsproj" />
     <ProjectReference Include="../../src/FSharp.Graphics.Host.Skia/FSharp.Graphics.Host.Skia.fsproj" />
   </ItemGroup>

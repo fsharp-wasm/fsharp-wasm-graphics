@@ -10,69 +10,39 @@ module FSharp.Graphics.Browser.SceneGallery
 
 open FSharp.Math
 open FSharp.Graphics.Core
-open FSharp.Graphics.Primitives
 open FSharp.Graphics.Scene
+open FSharp.Graphics.Canvas
 open FSharp.Graphics.Scenes
 open FSharp.Graphics.Scenes.Kit
 
-/// The scenes are laid out for a window about this wide; a narrower canvas shows them scaled down (hit-testing follows).
+/// The scenes are laid out for a window about this wide; a narrower canvas shows them scaled down to fit (hit testing follows).
 [<Literal>]
 let DesignWidth = 800.0f
 
-/// All mutable state of the page, in one object (a module-level `let mutable` is a global; this keeps it together).
-type Host() =
-    let text = CanvasTextEngine() :> ITextEngine
+/// The selection on top of the frame plumbing of FSharp.Graphics.Canvas.
+type Gallery() =
+    let host = CanvasHost(CanvasTextEngine())
     let scenes = List.toArray Scenes.all
-    let dispatcher = Hit.Dispatcher()
-    let commands = ResizeArray<DrawCommand>(2048)
-    let mutable resolved = Scene.Empty
-    let mutable width = 1024.0f
-    let mutable height = 768.0f
-    let mutable ratio = 1.0f
     let mutable index = 0
-    let mutable shownAt = -1.0
-    let mutable dirty = true
-
-    let fit () = min 1.0f (width / DesignWidth)
 
     member _.Count = scenes.Length
     member _.Index = index
     member _.Scenes = scenes
-
-    member _.Resize(w: float32, h: float32, r: float32) =
-        width <- w
-        height <- h
-        ratio <- r
-        dirty <- true
+    member _.Resize(w: float32, h: float32, r: float32) = host.Resize(w, h, r)
+    member _.Input(evt: InputEvent) = host.Input evt
 
     member _.Select(i: int) =
         let next = max 0 (min (scenes.Length - 1) i)
         if next <> index then
             index <- next
-            shownAt <- -1.0
-            dirty <- true
+            host.Restart()
         index
-
-    member _.Input(evt: InputEvent) : bool =
-        let handled = dispatcher.Handle(resolved, evt)
-        if handled then dirty <- true
-        handled
 
     member _.Frame(nowMs: float) =
         let def = scenes.[index]
-        if shownAt < 0.0 then shownAt <- nowMs
-        if def.Animated || dirty then
-            dirty <- false
-            let k = fit ()
-            let ctx = { Time = float32 (nowMs - shownAt); Size = Vec2.create (width / k) (height / k); Font = FontId 0UL }
-            let scene = def.Build ctx
-            resolved <- Resolve.resolve text (width / k) (if k < 1.0f then Scene.scale k k scene else scene)
-            commands.Clear()
-            Emit.emit commands resolved
-            Gfx.beginFrame (float width) (float height) (float ratio)
-            CanvasSink.run commands
+        host.Frame(nowMs, def.Animated, DesignWidth, fun time size -> def.Build { Time = time; Size = size; Font = FontId 0UL })
 
-let private host = Host()
+let private host = Gallery()
 
 let private announceSelection () = Gfx.announce "selected" (string host.Index) ""
 

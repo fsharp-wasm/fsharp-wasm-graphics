@@ -1,4 +1,4 @@
-namespace FSharp.Graphics.Browser
+namespace FSharp.Graphics.Canvas
 
 open FSharp.Graphics.Core
 open FSharp.Graphics.Primitives

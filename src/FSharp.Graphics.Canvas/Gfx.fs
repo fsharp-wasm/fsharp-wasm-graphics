@@ -1,4 +1,4 @@
-namespace FSharp.Graphics.Browser
+namespace FSharp.Graphics.Canvas
 
 open Fable.Core
 
