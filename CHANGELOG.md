@@ -5,6 +5,10 @@ All notable changes to this repository are documented here (newest first).
 ## [Unreleased]
 
 ### Added
+- **`FSharp.Graphics.Canvas`**, a library (packable, the tenth package): the canvas host that was part of the browser demo — the `Gfx`
+  imports of `runtime/gfx.js`, `CanvasTextEngine`, `Emit`, `CanvasSink` — plus `CanvasHost`, the frame plumbing every module that draws
+  onto one canvas needs (size, input, build -> resolve -> emit -> draw, redraw only when something changed). The scene gallery and the
+  widget editor of fsharp-wasm-ide are the two modules on it.
 - **Scene gallery** (`demo/FSharp.Graphics.Browser.Gallery`, `SceneGallery.wasm`): the thirteen scenes of `FSharp.Graphics.Scenes` on one
   canvas. A second entry project that links the host files of `FSharp.Graphics.Browser` (surface, text engine, command sink). It
   names its scenes to the page (`Gfx.announce`), `select(i)` / `selected()` / `sceneCount()` are exported, ← → Home End switch scenes, a
@@ -21,6 +25,12 @@ All notable changes to this repository are documented here (newest first).
 - `docs/consolidation.md`: the duplicated code (the monolith `src/FSharp.Graphics`, GlyphAura's copies of the primitives, the
   golden tests' rasterizer) with measured similarities and the order to remove it.
 - Apache License 2.0 (`LICENSE`, `NOTICE`; the submodules keep their own).
+
+### Removed
+- The GUI builder (`demo/FSharp.Graphics.GuiBuilder`, its browser module `demo/FSharp.Graphics.Browser`) moved to
+  [fsharp-wasm-ide](https://github.com/fsharp-wasm/fsharp-wasm-ide) as the widget editor; its scripted session is a test there. The
+  desktop runner no longer lists it (it would be a dependency of an application on this library); `FSharp.Graphics.GuiBuilder.Shots`
+  is now `FSharp.Graphics.Shots` and keeps the DSL, widget gallery and CSG showcases.
 
 ### Fixed
 - Golden tests: the rasterizer applied alpha twice (`Color.withAlpha` multiplies; four call sites also passed `A / 255 * x`): a

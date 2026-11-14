@@ -1,4 +1,4 @@
-module FSharp.Graphics.GuiBuilder.Showcase
+module FSharp.Graphics.Shots.Showcase
 
 open FSharp.Math
 open FSharp.Graphics.Core

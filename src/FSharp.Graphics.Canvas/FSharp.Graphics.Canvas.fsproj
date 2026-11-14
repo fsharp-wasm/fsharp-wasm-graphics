@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The canvas host: a resolved Scene drawn onto one <canvas> through the functions of runtime/gfx.js (fsharp-wasm-runtime).
+       Gfx are the imports, CanvasTextEngine measures text with the canvas, Emit turns a Scene into draw commands, CanvasSink
+       replays them, CanvasHost is the frame plumbing (size, input, build -> resolve -> emit -> draw) that every module
+       drawing onto a canvas needs.  A module that uses it (the scene gallery, the widget editor of fsharp-wasm-ide) only
+       supplies the scene and its exports.  Meant for fsharp-wasm; under .NET it builds, the imports are nativeOnly stubs. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <RootNamespace>FSharp.Graphics.Canvas</RootNamespace>
+    <AssemblyName>FSharp.Graphics.Canvas</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NuGetAudit>false</NuGetAudit>
+    <NoWarn>$(NoWarn);NU1900;NETSDK1188</NoWarn>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- [<Import>] and nativeOnly: the stub of FSharp.Wasm.Core -->
+    <Compile Include="$(FSharpWasmCoreDir)/Interop.fs" />
+    <Compile Include="Gfx.fs" />
+    <Compile Include="CanvasText.fs" />
+    <Compile Include="Emit.fs" />
+    <Compile Include="CanvasSink.fs" />
+    <Compile Include="CanvasHost.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FSharp.Math/FSharp.Math.fsproj" />
+    <ProjectReference Include="../FSharp.Graphics.Core/FSharp.Graphics.Core.fsproj" />
+    <ProjectReference Include="../FSharp.Graphics.Primitives/FSharp.Graphics.Primitives.fsproj" />
+    <ProjectReference Include="../FSharp.Graphics.Scene/FSharp.Graphics.Scene.fsproj" />
+  </ItemGroup>
+</Project>

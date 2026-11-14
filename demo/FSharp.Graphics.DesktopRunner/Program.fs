@@ -124,8 +124,7 @@ let main argv =
     let (sceneArg, software, fontArg) = parse (None, false, None) (List.ofArray argv)
     fontArg |> Option.iter (fun f -> Environment.SetEnvironmentVariable("FSG_FONT", f))
     let fonts = FontLocator.loadDefault ()
-    let builder = FSharp.Graphics.GuiBuilder.GuiBuilderDef.make (GlyphAuraTextEngine fonts :> ITextEngine)
-    let defs = Array.ofList (Scenes.all @ [ builder ])
+    let defs = Array.ofList Scenes.all
     let startIndex =
         match sceneArg with
         | Some id -> (match Array.tryFindIndex (fun (d: SceneDef) -> d.Id = id) defs with Some i -> i | None -> failwithf "unknown scene '%s'" id)
