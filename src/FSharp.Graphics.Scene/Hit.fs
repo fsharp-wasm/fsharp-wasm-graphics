@@ -50,7 +50,7 @@ module Hit =
             let hit = collect c p toLocal id acc
             if hit then acc.Add { Id = id; Handler = h; ToLocal = toLocal }
             hit
-        | Padding(_, c) | Opacity(_, c) | Animated(_, c) | Blur(_, c)
+        | Padding(_, c) | Opacity(_, c) | Semantic(_, c) | Animated(_, c) | Blur(_, c)
         | ColorFilter(_, c) | BlendMode(_, c) | Mask(_, c) -> child 0 c
 
     /// Reactive targets under `p`, innermost first (bubbling order).

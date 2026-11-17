@@ -71,6 +71,8 @@ module internal CachedNode =
         | Scene.Transform(m, c)     -> CachedTransform(m, build c, ref true)
         | Scene.Opacity(a, c)       -> CachedOpacity(a, build c, ref true)
         | Scene.Reactive(h, c)      -> CachedReactive(h, build c, ref true)
+        // semantics describe the scene to assistive technology; drawing does not need them
+        | Scene.Semantic(_, c)      -> build c
         | Scene.Animated(t, c)      -> CachedAnimated(t, AnimState(), build c, ref true)
         | Scene.Blur(sigma, c)      -> CachedBlur(sigma, build c, ref true)
         | Scene.GlyphRun(f, sz, c, gs, _) -> CachedGlyphRun(f, sz, c, gs)
