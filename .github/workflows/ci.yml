@@ -37,6 +37,10 @@ jobs:
       - name: Pack
         run: bash build/pack.sh 0.1.0-ci.${{ github.run_number }}
 
+      # contrast of the themes, the semantics of every widget, the size of the targets and the keyboard
+      - name: Accessibility tests of the widgets
+        run: dotnet run --project tests/FSharp.Graphics.WidgetTests/FSharp.Graphics.WidgetTests.fsproj -c Release
+
       - name: Upload packages
         uses: actions/upload-artifact@v7
         with:

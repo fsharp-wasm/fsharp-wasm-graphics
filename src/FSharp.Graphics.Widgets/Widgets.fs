@@ -10,6 +10,11 @@ open FSharp.Graphics.SceneDsl
 /// Every widget is a pure function `(ui, id, props) -> Scene`. The scene's natural top-left is
 /// the origin, so widgets drop straight into `column { }` / `row { }`.
 
+/// The roles of the scene's semantics, reachable where a module defines a `Role` of its own (`Label`).
+module internal SemanticRoles =
+    let heading (level: int) : Role = Role.Heading level
+    let staticText : Role = Role.StaticText
+
 module Label =
     type Role = Body | Muted | Caption | Heading | Title
 
@@ -22,7 +27,12 @@ module Label =
             | Caption -> th.FontSize - 2.0f, th.TextMuted
             | Heading -> th.FontSize + 4.0f, th.Text
             | Title -> th.FontSize + 10.0f, th.Text
-        Text(s, Ui.textStyle ui size color)
+        let semantics =
+            match role with
+            | Title -> SemanticRoles.heading 1
+            | Heading -> SemanticRoles.heading 2
+            | _ -> SemanticRoles.staticText
+        Semantic(Semantics.create "" semantics s, Text(s, Ui.textStyle ui size color))
 
 module Divider =
     let horizontal (ui: Ui<'m>) (width: float32) : Scene =
@@ -73,10 +83,11 @@ module Button =
     let view (ui: Ui<'m>) (id: string) (p: Props) : Scene =
         let th = ui.Theme
         let hover, pressed = Ui.isHover ui id, Ui.isPressed ui id
+        // every label colour is at least 4.5 : 1 on its fill, in every state (the tests check the pairs)
         let bg, fg =
             match p.Variant with
             | Primary -> (if pressed then th.AccentPressed elif hover then th.AccentHover else th.Accent), th.OnAccent
-            | Danger -> (if pressed then hex 0xB91C1C elif hover then hex 0xF87171 else th.Danger), th.OnAccent
+            | Danger -> (if pressed then hex 0x991B1B elif hover then hex 0xB91C1C else th.Danger), th.OnAccent
             | Secondary -> (if pressed then th.Border elif hover then th.SurfaceRaised else th.Surface), th.Text
             | Ghost -> (if pressed then th.SurfaceRaised elif hover then th.Surface else Color.Transparent), th.Text
         let tw = Ui.textWidth ui th.FontSize p.Text
@@ -87,110 +98,155 @@ module Button =
             Group [
                 (let r = rectangle { bounds 0.0f 0.0f w h; radius th.Radius; fill bg }
                  match r with
-                 | Shape sh when Ui.isFocused ui id -> Shape (Shapes.withStroke (Stroke.solid th.AccentHover 2.0f) sh)
-                 | Shape sh when p.Variant = Secondary -> Shape (Shapes.withStroke (Stroke.solid th.Border 1.0f) sh)
+                 | Shape sh when p.Variant = Secondary -> Shape (Shapes.withStroke (Stroke.solid th.Control 1.0f) sh)
                  | other -> other)
                 Scene.translate ((w - tw) * 0.5f) ((h - th_) * 0.5f) (Text(p.Text, Ui.textStyle ui th.FontSize fg))
+                (if p.Disabled then Empty else Ui.focusRing ui id w h th.Radius)
             ]
-        if p.Disabled then Opacity(0.45f, body) else Ui.interactive ui id p.OnClick body
+        let act (a: SemanticAction) = match a with SemanticAction.Activate -> p.OnClick () | _ -> ()
+        let described = Ui.semantic ui id Role.Button p.Text (fun s -> { s with Disabled = p.Disabled }) act
+        if p.Disabled then described (Opacity(0.45f, body)) else described (Ui.interactive ui id p.OnClick body)
 
 module CheckBox =
+    /// A box and its label, one target of at least 24 px (WCAG 2.5.8); the label is the accessible name.
     let view (ui: Ui<'m>) (id: string) (label: string) (value: bool) (onChange: bool -> unit) : Scene =
         let th = ui.Theme
         let hover = Ui.isHover ui id
+        let w = 28.0f + Ui.textWidth ui th.FontSize label + 6.0f
+        let h = Ui.MinTarget
         let box =
             rectangle {
-                bounds 0.0f 0.0f 18.0f 18.0f
+                bounds 0.0f 3.0f 18.0f 18.0f
                 radius 5.0f
-                fill (if value then th.Accent elif hover then th.SurfaceRaised else th.Surface)
-                stroke (if value then th.Accent else th.Border) 1.5f
+                fill (if value then th.Indicator elif hover then th.SurfaceRaised else th.Surface)
+                stroke (if value then th.Indicator else th.Control) 1.5f
             }
         let tick =
             if value then
-                Group [ Shape(Path(LineSdf(Vec2.create 4.5f 9.5f, Vec2.create 7.5f 12.5f, 2.0f), Solid th.OnAccent, None, None))
-                        Shape(Path(LineSdf(Vec2.create 7.5f 12.5f, Vec2.create 13.5f 5.5f, 2.0f), Solid th.OnAccent, None, None)) ]
+                Group [ Shape(Path(LineSdf(Vec2.create 4.5f 12.5f, Vec2.create 7.5f 15.5f, 2.0f), Solid th.OnAccent, None, None))
+                        Shape(Path(LineSdf(Vec2.create 7.5f 15.5f, Vec2.create 13.5f 8.5f, 2.0f), Solid th.OnAccent, None, None)) ]
             else Empty
-        let text = Scene.translate 28.0f 0.0f (Text(label, Ui.textStyle ui th.FontSize th.Text))
-        Ui.interactive ui id (fun () -> onChange (not value)) (Group [ box; tick; text ])
+        let text = Scene.translate 28.0f 3.0f (Text(label, Ui.textStyle ui th.FontSize th.Text))
+        let content =
+            Group [ rectangle { bounds 0.0f 0.0f w h; fill Color.Transparent }; box; tick; text; Ui.focusRing ui id w h 6.0f ]
+        let toggle () = onChange (not value)
+        Ui.semantic ui id Role.CheckBox label (fun s -> { s with Checked = ValueSome value })
+            (fun a -> match a with SemanticAction.Activate -> toggle () | _ -> ())
+            (Ui.interactive ui id toggle content)
 
 module Toggle =
+    /// A switch and its label; same target and naming rules as the check box.
     let view (ui: Ui<'m>) (id: string) (label: string) (value: bool) (onChange: bool -> unit) : Scene =
         let th = ui.Theme
         let hover = Ui.isHover ui id
+        let w = 48.0f + Ui.textWidth ui th.FontSize label + 6.0f
+        let h = Ui.MinTarget
         let track =
             rectangle {
-                bounds 0.0f 0.0f 38.0f 20.0f
+                bounds 0.0f 2.0f 38.0f 20.0f
                 radius 10.0f
-                fill (if value then (if hover then th.AccentHover else th.Accent) else (if hover then th.Border else th.SurfaceRaised))
+                fill (if value then (if hover then th.AccentHover else th.Indicator) else (if hover then th.Border else th.SurfaceRaised))
+                stroke (if value then th.Indicator else th.Control) 1.5f
             }
         let knob =
             circle {
-                at (if value then 28.0f else 10.0f) 10.0f
+                at (if value then 28.0f else 10.0f) 12.0f
                 radius 7.0f
-                fill th.OnAccent
+                fill (if value then th.OnAccent else th.Control)
             }
-        let text = Scene.translate 48.0f 1.0f (Text(label, Ui.textStyle ui th.FontSize th.Text))
-        Ui.interactive ui id (fun () -> onChange (not value)) (Group [ track; knob; text ])
+        let text = Scene.translate 48.0f 3.0f (Text(label, Ui.textStyle ui th.FontSize th.Text))
+        let content =
+            Group [ rectangle { bounds 0.0f 0.0f w h; fill Color.Transparent }; track; knob; text; Ui.focusRing ui id w h 6.0f ]
+        let toggle () = onChange (not value)
+        Ui.semantic ui id Role.Switch label (fun s -> { s with Checked = ValueSome value })
+            (fun a -> match a with SemanticAction.Activate -> toggle () | _ -> ())
+            (Ui.interactive ui id toggle content)
 
 module ProgressBar =
-    let view (ui: Ui<'m>) (width: float32) (value: float32) : Scene =
+    /// A bar of `width`; `name` says what progresses (the accessible name).
+    let viewNamed (ui: Ui<'m>) (name: string) (width: float32) (value: float32) : Scene =
         let th = ui.Theme
         let v = Scalar.clamp 0.0f 1.0f value
-        Group [
-            rectangle { bounds 0.0f 0.0f width 8.0f; radius 4.0f; fill th.SurfaceRaised }
-            (if v > 0.0f then rectangle { bounds 0.0f 0.0f (width * v) 8.0f; radius 4.0f; fill th.Accent } else Empty)
-        ]
+        let bar =
+            Group [
+                rectangle { bounds 0.0f 0.0f width 8.0f; radius 4.0f; fill th.SurfaceRaised; stroke th.Control 1 }
+                (if v > 0.0f then rectangle { bounds 0.0f 0.0f (width * v) 8.0f; radius 4.0f; fill th.Indicator } else Empty)
+            ]
+        Semantic({ Semantics.create "" Role.ProgressBar name with
+                     Min = 0.0f; Max = 1.0f; Now = v; Value = sprintf "%d%%" (int (v * 100.0f)) }, bar)
+
+    let view (ui: Ui<'m>) (width: float32) (value: float32) : Scene = viewNamed ui "Progress" width value
 
 module Slider =
     type Props = { Min: float32; Max: float32; Value: float32; Width: float32; OnChange: float32 -> unit }
 
     /// Pointer positions arrive in the slider's own local space, so the track maps directly to the
-    /// value: clicking jumps, dragging follows the pointer (captured until release).
-    let view (ui: Ui<'m>) (id: string) (p: Props) : Scene =
+    /// value: clicking jumps, dragging follows the pointer (captured until release).  Keyboard: arrows step by 5 % of the
+    /// range, Home and End jump to the ends.  `name` is the accessible name.
+    let viewNamed (ui: Ui<'m>) (id: string) (name: string) (p: Props) : Scene =
         let th = ui.Theme
         let range = Scalar.max' (p.Max - p.Min) 1e-6f
         let t = Scalar.clamp 0.0f 1.0f ((p.Value - p.Min) / range)
         let usable = p.Width - 16.0f
         let thumbX = 8.0f + usable * t
         let hover, pressed = Ui.isHover ui id, Ui.isPressed ui id
+        let h = Ui.MinTarget
         let body =
             Group [
-                rectangle { bounds 0.0f 8.0f p.Width 4.0f; radius 2.0f; fill th.SurfaceRaised }
-                rectangle { bounds 0.0f 8.0f thumbX 4.0f; radius 2.0f; fill th.Accent }
+                // the hit area is the whole 24 px band (WCAG 2.5.8)
+                rectangle { bounds 0.0f 0.0f p.Width h; fill Color.Transparent }
+                rectangle { bounds 0.0f 10.0f p.Width 4.0f; radius 2.0f; fill th.Control }
+                rectangle { bounds 0.0f 10.0f thumbX 4.0f; radius 2.0f; fill th.Indicator }
                 circle {
-                    at thumbX 10.0f
+                    at thumbX 12.0f
                     radius (if pressed then 9.0f else 8.0f)
-                    fill (if hover || pressed then th.AccentHover else th.Accent)
+                    fill (if hover || pressed then th.AccentHover else th.Indicator)
                     stroke th.Background 2
                 }
-                // transparent hit area so the whole 20px band is draggable
-                rectangle { bounds 0.0f 0.0f p.Width 20.0f; fill Color.Transparent }
+                Ui.focusRing ui id p.Width h 12.0f
             ]
         let dragging = ref false
         let valueAt (x: float32) = Scalar.clamp p.Min p.Max (p.Min + (x - 8.0f) / Scalar.max' usable 1.0f * range)
-        Reactive(
-            (fun e ->
-                match e with
-                | PointerEnter _ -> ui.Send(ui.Lift(UiMsg.Hover id)); true
-                | PointerLeave _ -> ui.Send(ui.Lift(UiMsg.Unhover id)); true
-                | PointerDown(pt, 0) ->
-                    dragging.Value <- true
-                    ui.Send(ui.Lift(UiMsg.Press id))
-                    ui.Send(ui.Lift(UiMsg.Focus id))
-                    p.OnChange (valueAt pt.X)          // click on the track jumps there
-                    true
-                | PointerMove pt when dragging.Value -> p.OnChange (valueAt pt.X); true
-                | PointerUp _ when dragging.Value ->
-                    dragging.Value <- false
-                    ui.Send(ui.Lift UiMsg.Release)
-                    true
-                | _ -> false),
-            body)
+        let step = range * 0.05f
+        let act (a: SemanticAction) =
+            match a with
+            | SemanticAction.Increment -> p.OnChange (Scalar.clamp p.Min p.Max (p.Value + step))
+            | SemanticAction.Decrement -> p.OnChange (Scalar.clamp p.Min p.Max (p.Value - step))
+            | SemanticAction.First -> p.OnChange p.Min
+            | SemanticAction.Last -> p.OnChange p.Max
+            | SemanticAction.SetValue v -> p.OnChange (Scalar.clamp p.Min p.Max v)
+            | _ -> ()
+        let reactive =
+            Reactive(
+                (fun e ->
+                    match e with
+                    | PointerEnter _ -> ui.Send(ui.Lift(UiMsg.Hover id)); true
+                    | PointerLeave _ -> ui.Send(ui.Lift(UiMsg.Unhover id)); true
+                    | PointerDown(pt, 0) ->
+                        dragging.Value <- true
+                        ui.Send(ui.Lift(UiMsg.Press id))
+                        ui.Send(ui.Lift(UiMsg.Focus id))
+                        p.OnChange (valueAt pt.X)          // click on the track jumps there
+                        true
+                    | PointerMove pt when dragging.Value -> p.OnChange (valueAt pt.X); true
+                    | PointerUp _ when dragging.Value ->
+                        dragging.Value <- false
+                        ui.Send(ui.Lift UiMsg.Release)
+                        true
+                    | _ -> false),
+                body)
+        Ui.semantic ui id Role.Slider name
+            (fun s -> { s with Min = p.Min; Max = p.Max; Now = p.Value; Value = sprintf "%d%%" (int (t * 100.0f)) }) act reactive
+
+    /// The slider named after its id; prefer `viewNamed`.
+    let view (ui: Ui<'m>) (id: string) (p: Props) : Scene = viewNamed ui id id p
 
 module TextField =
     type Props = { Value: string; Placeholder: string; Width: float32 }
 
-    let view (ui: Ui<'m>) (id: string) (p: Props) : Scene =
+    /// `name` is the accessible name (the placeholder disappears when typing and is no name); `onChange` receives the text
+    /// when the platform's own input element edits it (a browser: the overlay's `<input>`).
+    let viewNamed (ui: Ui<'m>) (id: string) (name: string) (onChange: string -> unit) (p: Props) : Scene =
         let th = ui.Theme
         let focused = Ui.isFocused ui id
         let h = th.ControlHeight
@@ -199,7 +255,7 @@ module TextField =
                 bounds 0.0f 0.0f p.Width h
                 radius th.Radius
                 fill th.Background
-                stroke (if focused then th.Accent else th.Border) (if focused then 2.0f else 1.0f)
+                stroke (if focused then th.Focus else th.Control) (if focused then 2.0f else 1.0f)
             }
         let shown = if p.Value.Length = 0 then p.Placeholder else p.Value
         let color = if p.Value.Length = 0 then th.TextMuted else th.Text
@@ -212,12 +268,19 @@ module TextField =
                 rectangle { bounds x (ty - 1.0f) 1.5f (th.FontSize * 1.2f + 2.0f); fill th.Text }
             else Empty
         let clipped = Clip(Rect.create 0.0f 0.0f p.Width h, Group [ label; caret ])
-        Ui.interactive ui id ignore (Group [ box; clipped ])
+        let act (a: SemanticAction) = match a with SemanticAction.SetText t -> onChange t | _ -> ()
+        Ui.semantic ui id Role.TextBox name (fun s -> { s with Value = p.Value; Description = p.Placeholder }) act
+            (Ui.interactive ui id ignore (Group [ box; clipped ]))
+
+    /// The text field named after its placeholder; prefer `viewNamed`.
+    let view (ui: Ui<'m>) (id: string) (p: Props) : Scene = viewNamed ui id (if p.Placeholder = "" then id else p.Placeholder) ignore p
 
 module ScrollView =
     type Props = { Width: float32; Height: float32; Offset: float32; OnScroll: float32 -> unit }
 
-    let view (ui: Ui<'m>) (p: Props) (content: Scene) : Scene =
+    /// A scrollable region: wheel, and from the keyboard the arrows (36 px), Home and End once it has the focus.  `name` says
+    /// what is in it.
+    let viewNamed (ui: Ui<'m>) (id: string) (name: string) (p: Props) (content: Scene) : Scene =
         let th = ui.Theme
         let inner, size = Ui.normalize ui content
         let maxOff = Scalar.max' 0.0f (size.Y - p.Height)
@@ -233,13 +296,27 @@ module ScrollView =
                 Clip(Rect.create 0.0f 0.0f p.Width p.Height, Scene.translate 0.0f (-off) inner)
                 bar
                 rectangle { bounds 0.0f 0.0f p.Width p.Height; fill Color.Transparent }
+                Ui.focusRing ui id p.Width p.Height 4.0f
             ]
-        Reactive(
-            (fun e ->
-                match e with
-                | Scroll d -> p.OnScroll (Scalar.clamp 0.0f maxOff (off - d.Y * 36.0f)); true
-                | _ -> false),
-            body)
+        let act (a: SemanticAction) =
+            match a with
+            | SemanticAction.Increment -> p.OnScroll (Scalar.clamp 0.0f maxOff (off + 36.0f))
+            | SemanticAction.Decrement -> p.OnScroll (Scalar.clamp 0.0f maxOff (off - 36.0f))
+            | SemanticAction.First -> p.OnScroll 0.0f
+            | SemanticAction.Last -> p.OnScroll maxOff
+            | _ -> ()
+        let reactive =
+            Reactive(
+                (fun e ->
+                    match e with
+                    | Scroll d -> p.OnScroll (Scalar.clamp 0.0f maxOff (off - d.Y * 36.0f)); true
+                    | PointerDown(_, 0) -> ui.Send(ui.Lift(UiMsg.Focus id)); true
+                    | _ -> false),
+                body)
+        Ui.semantic ui id Role.Region name (fun s -> { s with Now = off; Min = 0.0f; Max = maxOff }) act reactive
+
+    /// A scroll region named "Scrollable content"; prefer `viewNamed` (and an id of your own when there are several).
+    let view (ui: Ui<'m>) (p: Props) (content: Scene) : Scene = viewNamed ui "scroll" "Scrollable content" p content
 
 module Dropdown =
     type Props =
@@ -251,21 +328,31 @@ module Dropdown =
           OnSelect: int -> unit }
 
     /// The open menu is drawn below the header; place the dropdown late in its parent `Group`
-    /// so the menu paints (and hit-tests) above siblings.
-    let view (ui: Ui<'m>) (id: string) (p: Props) : Scene =
+    /// so the menu paints (and hit-tests) above siblings.  `name` is the accessible name of the combo box; the arrows change
+    /// the selection, Enter and Space open and close it, Escape closes it.
+    let viewNamed (ui: Ui<'m>) (id: string) (name: string) (p: Props) : Scene =
         let th = ui.Theme
         let h = th.ControlHeight
         let ty = (h - th.FontSize * 1.2f) * 0.5f
         let current = match List.tryItem p.Selected p.Options with Some s -> s | None -> ""
+        let focused = Ui.isFocused ui id
         let header =
             Group [
                 rectangle { bounds 0.0f 0.0f p.Width h; radius th.Radius; fill th.Background
-                            stroke (if p.Open || Ui.isFocused ui id then th.Accent else th.Border) 1.5f }
+                            stroke (if p.Open || focused then th.Focus else th.Control) (if focused then 2.0f else 1.5f) }
                 shift 10.0f ty (Text(current, Ui.textStyle ui th.FontSize th.Text))
                 // chevron
-                Group [ Shape(Path(LineSdf(Vec2.create (p.Width - 22.0f) (h * 0.5f - 2.0f), Vec2.create (p.Width - 16.0f) (h * 0.5f + 3.0f), 1.8f), Solid th.TextMuted, None, None))
-                        Shape(Path(LineSdf(Vec2.create (p.Width - 16.0f) (h * 0.5f + 3.0f), Vec2.create (p.Width - 10.0f) (h * 0.5f - 2.0f), 1.8f), Solid th.TextMuted, None, None)) ]
+                Group [ Shape(Path(LineSdf(Vec2.create (p.Width - 22.0f) (h * 0.5f - 2.0f), Vec2.create (p.Width - 16.0f) (h * 0.5f + 3.0f), 1.8f), Solid th.Control, None, None))
+                        Shape(Path(LineSdf(Vec2.create (p.Width - 16.0f) (h * 0.5f + 3.0f), Vec2.create (p.Width - 10.0f) (h * 0.5f - 2.0f), 1.8f), Solid th.Control, None, None)) ]
             ]
+        let n = List.length p.Options
+        let act (a: SemanticAction) =
+            match a with
+            | SemanticAction.Activate -> p.OnToggle ()
+            | SemanticAction.Dismiss -> if p.Open then p.OnToggle ()
+            | SemanticAction.Increment -> if p.Selected < n - 1 then p.OnSelect (p.Selected + 1)
+            | SemanticAction.Decrement -> if p.Selected > 0 then p.OnSelect (p.Selected - 1)
+            | _ -> ()
         let menu =
             if not p.Open then Empty
             else
@@ -280,10 +367,23 @@ module Dropdown =
                                             fill (if hot then th.Accent elif i = p.Selected then th.SurfaceRaised else Color.Transparent) }
                                 shift 10.0f 5.0f (Text(o, Ui.textStyle ui th.FontSize (if hot then th.OnAccent else th.Text)))
                             ]
-                        shift 4.0f (4.0f + float32 i * 30.0f) (Ui.interactive ui rid (fun () -> p.OnSelect i) row))
+                        let optionInfo =
+                            { Semantics.create rid Role.Option o with
+                                Selected = (i = p.Selected)
+                                Act = (fun a -> match a with SemanticAction.Activate -> p.OnSelect i | _ -> ()) }
+                        let described = Semantic(optionInfo, Ui.interactive ui rid (fun () -> p.OnSelect i) row)
+                        shift 4.0f (4.0f + float32 i * 30.0f) described)
                 let mh = float32 p.Options.Length * 30.0f + 8.0f
                 shift 0.0f (h + 4.0f)
-                    (Group [ rectangle { bounds 0.0f 0.0f p.Width mh; radius th.Radius; fill th.Surface
-                                         stroke th.Border 1; shadow 0 8 18 (rgba 0 0 0 110) }
-                             Group rows ])
-        Group [ Ui.interactive ui id p.OnToggle header; menu ]
+                    (Semantic(Semantics.create (id + "/list") Role.ListBox name,
+                              Group [ rectangle { bounds 0.0f 0.0f p.Width mh; radius th.Radius; fill th.Surface
+                                                  stroke th.Control 1; shadow 0 8 18 (rgba 0 0 0 110) }
+                                      Group rows ]))
+        Group [
+            Ui.semantic ui id Role.ComboBox name
+                (fun s -> { s with Value = current; Expanded = ValueSome p.Open }) act (Ui.interactive ui id p.OnToggle header)
+            menu
+        ]
+
+    /// The combo box named after its id; prefer `viewNamed`.
+    let view (ui: Ui<'m>) (id: string) (p: Props) : Scene = viewNamed ui id id p

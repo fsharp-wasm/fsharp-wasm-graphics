@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Dependency-free tests of the widget toolkit's accessibility: colour contrast of the themes, the semantics each widget
+       reports, placement of the elements, and the keyboard (`dotnet run` exits 1 on failure). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FSharp.Graphics.WidgetTests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FSharp.Graphics.Widgets/FSharp.Graphics.Widgets.fsproj" />
+  </ItemGroup>
+</Project>

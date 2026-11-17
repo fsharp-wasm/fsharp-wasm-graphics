@@ -4,6 +4,7 @@ open System
 open FSharp.Math
 open FSharp.Graphics.Core
 open FSharp.Graphics.Scene
+open FSharp.Graphics.SceneDsl
 
 /// Transient interaction state shared by all widgets. Lives in the application model.
 type UiState =
@@ -82,6 +83,29 @@ module Ui =
         let b = measure ui s
         (if b.X = 0.0f && b.Y = 0.0f then s else Scene.translate (-b.X) (-b.Y) s), Vec2.create b.W b.H
 
+    /// The smallest target a pointer or a finger has to hit (WCAG 2.5.8): widgets are at least this high and wide.
+    [<Literal>]
+    let MinTarget = 24.0f
+
+    /// The focus ring of a widget of `w` x `h`: 2 px inside its box, in the theme's `Focus` colour, only while it has the
+    /// focus.  Inside, so that focusing never changes the layout.
+    let focusRing (ui: Ui<'m>) (id: string) (w: float32) (h: float32) (corner: float32) : Scene =
+        if isFocused ui id then
+            rectangle { bounds 1.0f 1.0f (w - 2.0f) (h - 2.0f); radius corner; stroke ui.Theme.Focus 2.0f }
+        else Empty
+
+    /// Describes a widget to assistive technology.  The keyboard focus of the platform and the toolkit's follow each other
+    /// through `Focus` / `Blur`; `act` handles the rest (`Activate`, `Increment`, …).
+    let semantic (ui: Ui<'m>) (id: string) (role: Role) (name: string) (configure: Semantics -> Semantics)
+                 (act: SemanticAction -> unit) (content: Scene) : Scene =
+        let focused = isFocused ui id
+        let act' (a: SemanticAction) =
+            match a with
+            | SemanticAction.Focus -> if not focused then emit ui (UiMsg.Focus id)
+            | SemanticAction.Blur -> if focused then emit ui UiMsg.Blur
+            | other -> act other
+        Semantic(configure { Semantics.create id role name with Focusable = true; Focused = focused; Act = act' }, content)
+
     /// Standard pointer behaviour: hover / press / focus bookkeeping + a click callback.
     let interactive (ui: Ui<'m>) (id: string) (onClick: unit -> unit) (content: Scene) : Scene =
         Reactive(
@@ -98,15 +122,65 @@ module Ui =
                 | _ -> false),
             content)
 
+    /// The toolkit's name of a key: a browser says `ArrowLeft` and `" "`, a desktop host (Silk.NET) `Left` and `Space`.
+    let keyName (key: string) : string =
+        match key with
+        | "ArrowLeft" -> "Left"
+        | "ArrowRight" -> "Right"
+        | "ArrowUp" -> "Up"
+        | "ArrowDown" -> "Down"
+        | " " -> "Space"
+        | other -> other
+
+    /// The keys the toolkit handles for every application: Tab and Shift+Tab over the focusable widgets (in the order of the
+    /// scene), Enter and Space on the focused button / check box / switch / combo box, the arrows, Home and End on a
+    /// slider or a scrollable region, Escape on an open combo box.  True when it took the key.
+    let private handleKey (ui: Ui<'m>) (content: Scene) (key: string) : bool =
+        let nodes = SemanticTree.walk content
+        let order = SemanticTree.focusOrder nodes
+        let focused = ui.State.Focus |> Option.bind (fun f -> nodes |> Array.tryFind (fun s -> s.Id = f))
+        let act (a: SemanticAction) =
+            match focused with
+            | Some s when not s.Disabled -> s.Act a; true
+            | _ -> false
+        let isRole (r: Role) = match focused with Some s -> s.Role = r | None -> false
+        match key with
+        | "Tab" when order.Length > 0 ->
+            let n = order.Length
+            let at = ui.State.Focus |> Option.bind (fun f -> order |> Array.tryFindIndex (fun s -> s.Id = f))
+            let next =
+                match at with
+                | Some i -> order.[((if ui.State.Shift then i - 1 else i + 1) % n + n) % n]
+                | None -> if ui.State.Shift then order.[n - 1] else order.[0]
+            emit ui (UiMsg.Focus next.Id)
+            true
+        | "Enter" | "Space" ->
+            if isRole Role.Button || isRole Role.CheckBox || isRole Role.Switch || isRole Role.Option || isRole Role.ComboBox
+            then act SemanticAction.Activate
+            else false
+        | "Left" | "Down" -> if isRole Role.Slider || isRole Role.ComboBox || isRole Role.Region then act SemanticAction.Decrement else false
+        | "Right" | "Up" -> if isRole Role.Slider || isRole Role.ComboBox || isRole Role.Region then act SemanticAction.Increment else false
+        | "Home" -> if isRole Role.Slider || isRole Role.Region then act SemanticAction.First else false
+        | "End" -> if isRole Role.Slider || isRole Role.Region then act SemanticAction.Last else false
+        | "Escape" ->
+            match focused with
+            | Some s when s.Expanded = ValueSome true -> act SemanticAction.Dismiss
+            | _ -> false
+        | _ -> false
+
     /// Wrap the whole UI once: delivers key events to the app (the pointer is always "over" the
-    /// root, so the hover chain always contains it) and clears focus on background clicks.
+    /// root, so the hover chain always contains it) and clears focus on background clicks.  Keys the toolkit handles
+    /// itself (see `handleKey`) do not reach `onKey`; the others do, under the toolkit's key names (`keyName`).
     let root (ui: Ui<'m>) (onKey: string -> unit) (content: Scene) : Scene =
         Reactive(
             (fun e ->
                 match e with
-                | KeyDown ("ShiftLeft" | "ShiftRight") -> emit ui (UiMsg.Shift true); true
-                | KeyUp ("ShiftLeft" | "ShiftRight") -> emit ui (UiMsg.Shift false); true
-                | KeyDown k -> onKey k; true
+                | KeyDown ("ShiftLeft" | "ShiftRight" | "Shift") -> emit ui (UiMsg.Shift true); true
+                | KeyUp ("ShiftLeft" | "ShiftRight" | "Shift") -> emit ui (UiMsg.Shift false); true
+                | KeyDown k ->
+                    let k' = keyName k
+                    if not (handleKey ui content k') then onKey k'
+                    true
                 | PointerDown _ -> emit ui UiMsg.Blur; false
                 | _ -> false),
             content)

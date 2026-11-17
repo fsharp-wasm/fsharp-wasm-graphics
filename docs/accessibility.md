@@ -1,6 +1,6 @@
 # Accessibility of the widget toolkit
 
-Status: **started 2026-11-17**. Measured first, then built; this page says what is measured, what exists, and what is next, so
+Status: **under way (2026-11-17)**. Measured first, then built; this page says what is measured, what exists, and what is next, so
 that the work can be taken up at any point.
 
 ## Why this is a structural problem, not a list of bugs
@@ -10,7 +10,7 @@ it is a single unnamed picture. A scene knows rectangles, glyphs and handlers; i
 *is a button*. Keyboard handling is per application (the editor reacts to some keys for some widgets), the focus ring is drawn
 by some widgets and not by others, and the colours were never checked against a contrast ratio.
 
-## Measured (2026-11-17, before any change)
+## Measured (2026-11-17, before any change; the colours, focus rings, target sizes and the keyboard in the toolkit are fixed since, see below)
 
 Method: [`tools/a11y/baseline.mjs`](../tools/a11y/baseline.mjs) — axe-core 4.10.2 with the WCAG 2.0 / 2.1 / 2.2 A and AA rules,
 Chromium's accessibility tree, Tab stops. Raw results: `tools/a11y/baseline-2026-11-17-*.jsonl`.
@@ -63,12 +63,32 @@ Chromium's accessibility tree, Tab stops. Raw results: `tools/a11y/baseline-2026
 
 ## What is done
 
-* `Role`, `Live`, `SemanticAction`, `Semantics`, the `Semantic` scene node, handled by `Resolve`, `Hit`, `Layout`, the
-  combinators, the optimizer, the canvas emitter and the render cache (nothing draws differently).
-* `SemanticTree.collect` / `walk` / `focusOrder`.
-* The measurement (script and results in `tools/a11y/`).
+* **Semantics in the scene**: `Role`, `Live`, `SemanticAction`, `Semantics` and the `Semantic` scene node (handled by `Resolve`,
+  `Hit`, `Layout`, the combinators, the optimizer, the canvas emitter and the render cache); `SemanticTree.collect` / `walk` /
+  `focusOrder`.
+* **Theme**: new tokens `Control`, `Focus`, `Indicator`; `Accent` and its states darker so that white labels have 4.5 : 1;
+  light theme `TextMuted` and `Success` fixed. Every pair a widget draws is checked by a test, in both themes.
+* **Widgets** (`Label`, `Button`, `CheckBox`, `Toggle`, `ProgressBar`, `Slider`, `TextField`, `ScrollView`, `Dropdown`): each
+  reports its role, name, state and range; each draws a focus ring (inside its box, so focusing never moves the layout); check
+  boxes, toggles and sliders are at least 24 px high (2.5.8). `viewNamed` variants take the accessible name; the old `view`
+  functions keep working and name the widget after its label, placeholder or id.
+* **Keyboard in the toolkit** (`Ui.root`): Tab and Shift+Tab over the focusable widgets in scene order (a disabled one is skipped),
+  Enter and Space on button, check box, switch and combo box, the arrows, Home and End on a slider, a scroll region and a
+  combo box, Escape on an open combo box; the browser's key names (`ArrowLeft`, `" "`) map to the toolkit's. An application
+  receives the keys the toolkit does not handle, under the toolkit's names.
+* **Tests** (`tests/FSharp.Graphics.WidgetTests`, 88 checks, in CI): the contrast of every pair, the semantics of every widget,
+  the place and size of the elements, the keyboard. A mutation check (the old accent colours back in) fails with exactly the
+  measured ratios, 3.68 : 1 and 2.54 : 1.
 
-The host tests of the split projects pass (78 of 78); no widget is annotated yet, so no scene contains a `Semantic` node.
+The host tests of the split projects (78) and the pixel goldens (18) are unchanged.
+
+## What is next
+
+1. **The overlay in the browser** (`runtime/gfx.js`): the tree reaches the page, so that a screen reader finds it.
+2. **The editor** adopts the toolkit: regions, the design surface as selectable elements, `viewNamed` everywhere, its own Tab
+   handling removed (the toolkit's replaces it), announcements of what changed. The editor pins an older revision of this
+   library; moving it is part of this step.
+3. End-to-end: axe-core and the accessibility tree on the editor page, Tab stops, and a keyboard-only session, in CI.
 
 ## Not covered by any automatic check — to be done by hand
 
