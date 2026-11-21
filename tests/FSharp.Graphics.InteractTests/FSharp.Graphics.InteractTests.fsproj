@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The tests of FSharp.Graphics.Interact.  Plain checks, no framework, so that the same file runs under .NET (`dotnet run`: the exit code is the number of
+       failures) and compiles with fsharp-wasm.  The WebAssembly run of the logic is also done by the newsletter designer's suite, which drops blocks with it. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>FSharp.Graphics.InteractTests</AssemblyName>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Tests.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FSharp.Graphics.Interact/FSharp.Graphics.Interact.fsproj" />
+  </ItemGroup>
+</Project>

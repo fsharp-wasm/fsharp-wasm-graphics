@@ -21,6 +21,7 @@
     <Project Path="src/FSharp.Graphics.Tea/FSharp.Graphics.Tea.fsproj" />
     <Project Path="src/FSharp.Graphics.Host/FSharp.Graphics.Host.fsproj" />
     <Project Path="src/FSharp.Graphics.Host.Skia/FSharp.Graphics.Host.Skia.fsproj" />
+    <Project Path="src/FSharp.Graphics.Interact/FSharp.Graphics.Interact.fsproj" />
     <Project Path="src/FSharp.Graphics.Wasm/FSharp.Graphics.Wasm.fsproj" />
     <Project Path="src/FSharp.Math/FSharp.Math.fsproj" />
   </Folder>
@@ -29,6 +30,7 @@
     <Project Path="tests/FSharp.Graphics.HostTests/FSharp.Graphics.HostTests.fsproj" />
     <Project Path="tests/FSharp.Graphics.WidgetTests/FSharp.Graphics.WidgetTests.fsproj" />
     <Project Path="tests/FSharp.Math.Tests/FSharp.Math.Tests.fsproj" />
+    <Project Path="tests/FSharp.Graphics.InteractTests/FSharp.Graphics.InteractTests.fsproj" />
     <Project Path="tests/FSharp.Graphics.GoldenTests/FSharp.Graphics.GoldenTests.fsproj" />
     <Project Path="tests/FSharp.Graphics.WasmTests/FSharp.Graphics.WasmTests.fsproj" />
   </Folder>

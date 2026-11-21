@@ -12,7 +12,7 @@ VERSION_ARG=()
 [[ $# -gt 0 ]] && VERSION_ARG=("-p:Version=$1")
 rm -rf "$OUT"; mkdir -p "$OUT"
 # order = dependency order, so that every package finds the ones below it
-for p in FSharp.Math FSharp.Graphics.Core FSharp.Graphics.Primitives FSharp.Graphics.Scene FSharp.Graphics.SceneDsl \
+for p in FSharp.Math FSharp.Graphics.Interact FSharp.Graphics.Core FSharp.Graphics.Primitives FSharp.Graphics.Scene FSharp.Graphics.SceneDsl \
          FSharp.Graphics.Render FSharp.Graphics.Tea FSharp.Graphics.Widgets FSharp.Graphics.Canvas FSharp.Graphics.Host; do
   dotnet pack "$ROOT/src/$p/$p.fsproj" -c Release "${VERSION_ARG[@]}" -o "$OUT" --nologo -v q
 done

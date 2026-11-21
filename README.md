@@ -21,6 +21,7 @@ Model ──View──▶ Scene ──Resolve──▶ positioned Scene ──Em
 | `FSharp.Graphics.Render` | the command encoder/decoder (protocol v2), diffing |
 | `FSharp.Graphics.Tea` | the Elmish-style runtime and commands |
 | `FSharp.Graphics.Widgets` | buttons, fields, sliders, toggles, theme |
+| `FSharp.Graphics.Interact` | where a drag lands: slots, the drop a pointer position means (before, after, into), the drag as a session, scrolling near an edge. Pure geometry on `FSharp.Math`: the canvas and the DOM share it |
 | `FSharp.Graphics.Host` | fonts, the software rasterizer, a PNG encoder (all own code) |
 | `FSharp.Graphics.Host.Skia` | a Skia host (needs SkiaSharp; optional, not packed) |
 
