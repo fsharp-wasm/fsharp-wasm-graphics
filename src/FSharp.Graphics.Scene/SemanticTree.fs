@@ -33,6 +33,8 @@ module SemanticTree =
             | Clip(r, c) ->
                 let w = Mat3x2.transformRect world r
                 go c world (ValueSome(match clip with ValueSome k -> Rect.intersect k w | ValueNone -> w)) parent
+            // decorative or inert (a picture of a widget): neither it nor anything inside it is exposed
+            | Semantic(info, _) when info.Role = Role.None -> ()
             | Semantic(info, c) ->
                 let own =
                     match Resolve.bounds c with
@@ -70,6 +72,7 @@ module SemanticTree =
             match s with
             | Empty | Text _ | Shape _ | GlyphRun _ | Image _ -> ()
             | Group cs | Stack(_, cs) -> for c in cs do go c parent
+            | Semantic(info, _) when info.Role = Role.None -> ()
             | Semantic(info, c) ->
                 raws.Add { RInfo = info; RParent = parent; RBounds = Rect.zero; RVisible = true }
                 go c (raws.Count - 1)

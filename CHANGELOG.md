@@ -4,6 +4,9 @@ All notable changes to this repository are documented here (newest first).
 
 ## [Unreleased]
 
+### Changed
+- A `Semantic` node with `Role.None` hides everything inside it from the semantic tree (`SemanticTree.collect` and `walk`) and from the tab order: a picture of a widget, such as an element that is being designed, is not exposed as a live widget. `Role.None` was documented as "not exposed" and did nothing.
+
 ### Added
 - **`FSharp.Graphics.Interact`**, a library (packable): where a drag lands — `Slot`, `Drop.resolve` (a pointer position means before, after or into a slot; the innermost slot wins; above or below the list is before the first / after the last), `Session` and `Drag` (press, move beyond a threshold, release, cancel; a press that does not move is a click) and `Scroll.near` (the speed of an auto-scroll near an edge). Pure geometry on `FSharp.Math`, no scene graph and no DOM, so the widget editor (canvas) and the newsletter designer (DOM) use one code. 44 checks under .NET and as WasmGC.
 - **`FSharp.Graphics.Canvas`**, a library (packable, the tenth package): the canvas host that was part of the browser demo — the `Gfx`

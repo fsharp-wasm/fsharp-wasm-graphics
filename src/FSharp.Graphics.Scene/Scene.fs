@@ -46,7 +46,7 @@ module Insets =
 /// What an element is, for assistive technology: the ARIA roles the widgets need (see `Semantics`).
 [<RequireQualifiedAccess>]
 type Role =
-    /// Decorative: not exposed.
+    /// Decorative or inert: not exposed, and nothing inside it is either (a picture of a widget, such as an element being designed).
     | None
     | Group | Region | Toolbar | List | ListItem
     | Heading of level: int

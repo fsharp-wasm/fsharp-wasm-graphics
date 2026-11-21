@@ -127,6 +127,11 @@ let placementTests () =
         (let sc = Group [ Semantic(Semantics.create "list" Role.List "Items", Group [ Button.view ui "a" (Button.make "A" ignore); Button.view ui "b" (Button.make "B" ignore) ]) ]
          let n = SemanticTree.collect (resolved sc)
          n.Length = 3 && n.[0].Parent = -1 && n.[1].Parent = 0 && n.[2].Parent = 0 && n.[1].Info.Name = "A" && n.[2].Info.Name = "B")
+    check "a Role.None element hides everything inside it, from the tab order too"
+        (let sc = Group [ Semantic(Semantics.create "" Role.None "", Button.view ui "picture" (Button.make "A picture" ignore)); Button.view ui "real" (Button.make "Real" ignore) ]
+         let names = SemanticTree.walk sc |> Array.map (fun s -> s.Name)
+         let collected = SemanticTree.collect (resolved sc) |> Array.map (fun n -> n.Info.Name)
+         names = [| "Real" |] && collected = [| "Real" |] && (SemanticTree.focusOrder (SemanticTree.walk sc)).Length = 1)
     check "collect: Order puts a sibling first"
         (let sc = Group [ Semantic({ Semantics.create "late" Role.Button "Late" with Order = 1 }, Empty); Semantic({ Semantics.create "early" Role.Button "Early" with Order = 0 }, Empty) ]
          (SemanticTree.walk sc |> Array.map (fun s -> s.Name)) = [| "Early"; "Late" |])
