@@ -63,6 +63,8 @@ module Hit =
     type Dispatcher() =
         let mutable hover   : Target[] = [||]
         let mutable pressed : Target[] = [||]
+        /// Where the pointer was last seen: keys and the wheel go to what is there in the scene of the moment.
+        let mutable pointer : Vec2 voption = ValueNone
 
         let has (ts: Target[]) (t: Target) = ts |> Array.exists (fun x -> x.Id = t.Id)
         /// Express pointer positions in the target's own coordinate space.
@@ -85,6 +87,7 @@ module Hit =
         member _.Handle(scene: Scene, evt: InputEvent) : bool =
             match evt with
             | PointerMove p ->
+                pointer <- ValueSome p
                 let now = pick scene p
                 for t in hover do if not (has now t) then send t (PointerLeave p) |> ignore
                 for t in now   do if not (has hover t) then send t (PointerEnter p) |> ignore
@@ -92,12 +95,19 @@ module Hit =
                 // implicit capture: while pressed, the press target keeps receiving moves (drags)
                 bubble (if pressed.Length > 0 then pressed else now) evt
             | PointerDown(p, _) ->
+                pointer <- ValueSome p
                 pressed <- pick scene p
                 bubble pressed evt
             | PointerUp(p, _) ->
+                pointer <- ValueSome p
                 // the press target keeps the pointer until release (implicit capture)
                 let ts = if pressed.Length > 0 then pressed else pick scene p
                 pressed <- [||]
                 bubble ts evt
-            | Scroll _ | KeyDown _ | KeyUp _ -> bubble hover evt
+            // The handlers of THIS frame under the pointer, not the ones that were there when the pointer last moved: those closed over the state of that frame (the focus, a
+            // text), and a key pressed since would act on it.
+            | Scroll _ | KeyDown _ | KeyUp _ ->
+                (match pointer with
+                 | ValueSome p -> bubble (pick scene p) evt
+                 | ValueNone -> false)
             | PointerEnter _ | PointerLeave _ -> false

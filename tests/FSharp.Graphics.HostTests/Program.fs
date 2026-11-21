@@ -179,6 +179,20 @@ let hitTests () =
     d.Handle(build (), PointerUp(v 500.0f 500.0f, 0)) |> ignore
     check "press captures the pointer: move/up still reach the pressed node" (hits.Contains "front:move" && hits.Contains "front:up")
 
+    // keys and the wheel go to the handlers of the CURRENT frame under the pointer: the ones of the frame where the pointer last moved hold the state of that frame
+    // (the focus, a text), and a key would act on it
+    let seen = ResizeArray<int>()
+    let frameOf (n: int) = Scene.Reactive((fun e -> (match e with KeyDown _ | Scroll _ -> seen.Add n | _ -> ()); true), box 0.0f 0.0f 100.0f 100.0f blue)
+    let d2 = Hit.Dispatcher()
+    d2.Handle(frameOf 1, PointerMove(v 10.0f 10.0f)) |> ignore
+    d2.Handle(frameOf 2, KeyDown "A") |> ignore
+    d2.Handle(frameOf 3, Scroll(v 0.0f 5.0f)) |> ignore
+    check "a key and the wheel reach the handler of the current frame, not of the frame of the last pointer move" (List.ofSeq seen = [ 2; 3 ])
+    check "a key before any pointer has moved reaches nothing" (not ((Hit.Dispatcher()).Handle(frameOf 4, KeyDown "A")))
+    seen.Clear()
+    d2.Handle(frameOf 5, PointerMove(v 500.0f 500.0f)) |> ignore
+    check "a key with the pointer outside every handler reaches nothing" (not (d2.Handle(frameOf 6, KeyDown "A")) && seen.Count = 0)
+
 // ── 5. timeline ────────────────────────────────────────────────────────────
 let timelineTests () =
     section "Timeline / easing"

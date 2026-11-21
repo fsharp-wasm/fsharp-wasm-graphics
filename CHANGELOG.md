@@ -4,6 +4,9 @@ All notable changes to this repository are documented here (newest first).
 
 ## [Unreleased]
 
+### Fixed
+- Keys and the wheel go to the handlers of the **current** frame under the pointer (`Hit.Dispatcher`), not to the ones of the frame in which the pointer last moved. Those closed over the state of that frame, so a key (Tab, with the focus of the moment) acted on an old one; it showed as the keyboard focus jumping to the first control.
+
 ### Changed
 - A `Semantic` node with `Role.None` hides everything inside it from the semantic tree (`SemanticTree.collect` and `walk`) and from the tab order: a picture of a widget, such as an element that is being designed, is not exposed as a live widget. `Role.None` was documented as "not exposed" and did nothing.
 
