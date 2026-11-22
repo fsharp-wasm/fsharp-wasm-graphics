@@ -61,6 +61,14 @@ let tests () =
      | Damage.Regions rs -> check "two buttons side by side with a gap of a few pixels are one region" (rs.Length = 1)
      | _ -> check "two buttons side by side are a region" false)
 
+    // two buttons in groups of their own (a transform each), both changed: the stretch between the changes closes the first group and opens the second, and still it is two regions
+    let grouped (a: bool) (b: bool) =
+        let group (dx: float32) (hovered: bool) = [ PushTransform (Mat3x2.translation dx 0.0f) ] @ draw (rect 20.0f 20.0f 100.0f 36.0f (if hovered then colour 90uy 90uy 255uy else colour 50uy 50uy 200uy)) @ [ PopTransform ]
+        list (panel @ group 0.0f a @ group 500.0f b)
+    (match Damage.between (grouped false false) (grouped true true) canvas with
+     | Damage.Regions rs -> check "two changes in groups of their own are two regions" (rs.Length = 2 && covers rs.[0] (Rect.create 20.0f 20.0f 100.0f 36.0f) && covers rs.[1] (Rect.create 520.0f 20.0f 100.0f 36.0f))
+     | _ -> check "two changes in groups of their own are regions" false)
+
     // a shape put in between: the region is where it is
     let extra = draw (rect 700.0f 300.0f 40.0f 40.0f (colour 200uy 0uy 0uy))
     let inserted = list (panel @ button 0 false @ button 1 false @ extra @ button 2 false)

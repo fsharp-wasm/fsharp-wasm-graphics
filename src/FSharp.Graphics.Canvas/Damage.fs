@@ -180,10 +180,31 @@ module Damage =
             if d < lowest then lowest <- d
         struct (d, lowest)
 
-    /// Compare the commands of the frame before with the ones of this frame.  What is the same at the start and at the end is the same picture; what lies between is what changed.  That holds only
-    /// when the commands in between leave the state as they found it, every push meeting its pop: a changed push draws everything up to its pop, in the part that is the same, differently.  So
-    /// the stretch that changed is taken on to the pop of such a push (the same commands in both frames), and the box of what the changed commands drew before and draw now is the region to
-    /// redraw.  When no pop can be found like that, or the two frames do not open the same pushes, the whole canvas is drawn.
+    /// The change that a set of boxes is: each cut to the canvas, merged, and none at all or too much of it handled as such.
+    let private regionsOf (boxes: ResizeArray<Rect>) (canvas: Rect) : Change =
+        let cut = ResizeArray<Rect>()
+        for r in boxes do
+            let x0 = max canvas.X r.X
+            let y0 = max canvas.Y r.Y
+            let x1 = min (canvas.X + canvas.W) (r.X + r.W)
+            let y1 = min (canvas.Y + canvas.H) (r.Y + r.H)
+            if x1 > x0 && y1 > y0 then cut.Add(Rect.create x0 y0 (x1 - x0) (y1 - y0))
+        if cut.Count = 0 then Nothing
+        else
+            let merged = if cut.Count > 64 then ResizeArray<Rect>([ Seq.reduce union cut ]) else merge cut
+            let merged = if merged.Count > mostRegions then ResizeArray<Rect>([ Seq.reduce union merged ]) else merged
+            let mutable total = 0.0f
+            for r in merged do total <- total + area r
+            if total > wholeShare * area canvas then Everything else Regions (merged.ToArray())
+
+    /// Compare the commands of the frame before with the ones of this frame.  What is the same at the start and at the end is the same picture; what lies between is what changed.
+    ///
+    /// When the stretch between has as many commands in both frames, and what differs in it are drawing commands set against drawing commands, the structure (every push and pop) is the same
+    /// and only those commands changed: their boxes, before and now, are the regions (two buttons far apart are two regions; what lies between them is not touched).
+    ///
+    /// Otherwise the stretch is taken as a whole, which holds only when its commands leave the state as they found it, every push meeting its pop: a changed push draws everything up to its pop, in
+    /// the part that is the same, differently.  So the stretch is taken on to the pop of such a push (the same commands in both frames), and the box of everything in it, before and now, is the
+    /// region.  When no pop can be found like that, or the two frames do not open the same pushes, the whole canvas is drawn.
     let between (before: ResizeArray<DrawCommand>) (after: ResizeArray<DrawCommand>) (canvas: Rect) : Change =
         let na = before.Count
         let nb = after.Count
@@ -193,42 +214,39 @@ module Damage =
         else
             let mutable q = 0
             while q < na - p && q < nb - p && same before.[na - 1 - q] after.[nb - 1 - q] do q <- q + 1
-            let struct (openedBefore, lowestBefore) = depth before p (na - q)
-            let struct (openedAfter, lowestAfter) = depth after p (nb - q)
-            // take the common end in, up to the pop that closes what the changed commands opened
-            let mutable e = 0
-            let mutable ok = lowestBefore >= 0 && lowestAfter >= 0 && openedBefore = openedAfter
-            if ok && openedBefore > 0 then
-                let mutable open' = openedBefore
-                while open' > 0 && e < q do
-                    (match before.[na - q + e] with
-                     | PushClip _ | PushTransform _ | PushLayer _ -> open' <- open' + 1
-                     | PopClip | PopTransform | PopLayer -> open' <- open' - 1
-                     | _ -> ())
-                    e <- e + 1
-                if open' <> 0 then ok <- false
-            if not ok then Everything
+            let stack = ResizeArray<State>()
+            let mutable st = initial
+            for i in 0 .. p - 1 do st <- advance stack st after.[i]
+            let boxes = ResizeArray<Rect>()
+            let mutable pairs = na - q - p = nb - q - p
+            if pairs then
+                for i in p .. na - q - 1 do
+                    if not (same before.[i] after.[i]) && (isState before.[i] || isState after.[i]) then pairs <- false
+            if pairs then
+                for i in p .. na - q - 1 do
+                    if not (same before.[i] after.[i]) then
+                        (match reach st before.[i] with ValueSome r -> boxes.Add r | ValueNone -> ())
+                        (match reach st after.[i] with ValueSome r -> boxes.Add r | ValueNone -> ())
+                    st <- advance stack st after.[i]
+                regionsOf boxes canvas
             else
-                let stack = ResizeArray<State>()
-                let mutable st = initial
-                for i in 0 .. p - 1 do st <- advance stack st after.[i]
-                let boxes = ResizeArray<Rect>()
-                let endBefore = na - q + e
-                let endAfter = nb - q + e
-                // the same number of commands in the stretch, and what differs in it are drawing commands set against drawing commands: only those are what changed (two buttons far
-                // apart are two regions, and the buttons between them, which are in the stretch, are not touched)
-                let mutable pairs = endBefore - p = endAfter - p
-                if pairs then
-                    for i in p .. endBefore - 1 do
-                        if not (same before.[i] after.[i]) && (isState before.[i] || isState after.[i]) then pairs <- false
-                if pairs then
-                    for i in p .. endBefore - 1 do
-                        if not (same before.[i] after.[i]) then
-                            (match reach st before.[i] with ValueSome r -> boxes.Add r | ValueNone -> ())
-                            (match reach st after.[i] with ValueSome r -> boxes.Add r | ValueNone -> ())
-                        st <- advance stack st after.[i]
+                let struct (openedBefore, lowestBefore) = depth before p (na - q)
+                let struct (openedAfter, lowestAfter) = depth after p (nb - q)
+                // take the common end in, up to the pop that closes what the changed commands opened
+                let mutable e = 0
+                let mutable ok = lowestBefore >= 0 && lowestAfter >= 0 && openedBefore = openedAfter
+                if ok && openedBefore > 0 then
+                    let mutable open' = openedBefore
+                    while open' > 0 && e < q do
+                        (match before.[na - q + e] with
+                         | PushClip _ | PushTransform _ | PushLayer _ -> open' <- open' + 1
+                         | PopClip | PopTransform | PopLayer -> open' <- open' - 1
+                         | _ -> ())
+                        e <- e + 1
+                    if open' <> 0 then ok <- false
+                if not ok then Everything
                 else
-                    for (cs, upTo) in [ (before, endBefore); (after, endAfter) ] do
+                    for (cs, upTo) in [ (before, na - q + e); (after, nb - q + e) ] do
                         let local = ResizeArray<State>(stack)
                         let mutable s = st
                         for i in p .. upTo - 1 do
@@ -236,18 +254,4 @@ module Damage =
                             | ValueSome r -> boxes.Add r
                             | ValueNone -> ()
                             s <- advance local s cs.[i]
-                // each box cut to the canvas; one that lies outside it is nothing
-                let cut = ResizeArray<Rect>()
-                for r in boxes do
-                    let x0 = max canvas.X r.X
-                    let y0 = max canvas.Y r.Y
-                    let x1 = min (canvas.X + canvas.W) (r.X + r.W)
-                    let y1 = min (canvas.Y + canvas.H) (r.Y + r.H)
-                    if x1 > x0 && y1 > y0 then cut.Add(Rect.create x0 y0 (x1 - x0) (y1 - y0))
-                if cut.Count = 0 then Nothing
-                else
-                    let merged = if cut.Count > 64 then ResizeArray<Rect>([ Seq.reduce union cut ]) else merge cut
-                    let merged = if merged.Count > mostRegions then ResizeArray<Rect>([ Seq.reduce union merged ]) else merged
-                    let mutable total = 0.0f
-                    for r in merged do total <- total + area r
-                    if total > wholeShare * area canvas then Everything else Regions (merged.ToArray())
+                    regionsOf boxes canvas
