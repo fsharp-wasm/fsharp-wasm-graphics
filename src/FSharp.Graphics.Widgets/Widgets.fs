@@ -293,9 +293,11 @@ module ScrollView =
             else Empty
         let body =
             Group [
+                // the area the region answers for (a press on it focuses it, the wheel scrolls it) is BELOW the content: a picked shape hides what is under it, so above the
+                // content it would take every press and the widgets inside could not be reached
+                rectangle { bounds 0.0f 0.0f p.Width p.Height; fill Color.Transparent }
                 Clip(Rect.create 0.0f 0.0f p.Width p.Height, Scene.translate 0.0f (-off) inner)
                 bar
-                rectangle { bounds 0.0f 0.0f p.Width p.Height; fill Color.Transparent }
                 Ui.focusRing ui id p.Width p.Height 4.0f
             ]
         let act (a: SemanticAction) =

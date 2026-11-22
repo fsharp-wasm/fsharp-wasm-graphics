@@ -194,12 +194,37 @@ let keyboardTests () =
     press "ArrowLeft"
     check "arrows on a check box are the application's (not a slider)" (keys.Count = 2 && keys.[1] = "Left")
 
+// ── 5. a widget inside a scroll region ─────────────────────────────────────
+let scrollTests () =
+    section "A widget inside a ScrollView"
+    reset ()
+    let clicks = ref 0
+    let ui = mkUi ()
+    let inner = Button.view ui "inner" (Button.make "Inner" (fun () -> clicks.Value <- clicks.Value + 1))
+    let scene = ScrollView.viewNamed ui "scroll" "Content" { Width = 200.0f; Height = 100.0f; Offset = 0.0f; OnScroll = ignore } inner
+    let p = Vec2.create 20.0f 15.0f                                   // on the button
+    // the router: the button is under the pointer, so it takes the press and the release; the region around it did not take them from it
+    let d = Hit.Dispatcher()
+    d.Handle(scene, PointerMove p) |> ignore
+    d.Handle(scene, PointerDown(p, 0)) |> ignore
+    d.Handle(scene, PointerUp(p, 0)) |> ignore
+    check "a button in a ScrollView can be clicked" (clicks.Value = 1)
+    check "a press on it focuses the button, not the region" (state.Focus = Some "inner")
+    // where nothing of the content is, the region itself answers (a press focuses it)
+    reset ()
+    let q = Vec2.create 150.0f 80.0f
+    d.Handle(scene, PointerMove q) |> ignore
+    d.Handle(scene, PointerDown(q, 0)) |> ignore
+    d.Handle(scene, PointerUp(q, 0)) |> ignore
+    check "a press on the empty part of the region focuses the region" (state.Focus = Some "scroll")
+
 [<EntryPoint>]
 let main _ =
     contrastTests ()
     semanticsTests ()
     placementTests ()
     keyboardTests ()
+    scrollTests ()
     printfn ""
     if failures.Count = 0 then printfn "%d passed, 0 failed" passed; 0
     else printfn "%d passed, %d failed" passed failures.Count; 1
