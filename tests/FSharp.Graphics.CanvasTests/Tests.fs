@@ -21,9 +21,10 @@ let private list (cs: DrawCommand list) : ResizeArray<DrawCommand> = ResizeArray
 let private draw (s: PrimitiveShape) : DrawCommand list = DrawList.fromShape s
 let private covers (r: Rect) (inner: Rect) = r.X <= inner.X && r.Y <= inner.Y && r.X + r.W >= inner.X + inner.W && r.Y + r.H >= inner.Y + inner.H
 
+/// the one region of a change that has exactly one
 let private asRegion (c: Damage.Change) : Rect option =
     match c with
-    | Damage.Region r -> Some r
+    | Damage.Regions [| r |] -> Some r
     | _ -> None
 
 let tests () =
@@ -49,6 +50,16 @@ let tests () =
     check "a command that differs in its colour is not" (not (List.forall2 Damage.same a (draw (rect 5.0f 5.0f 50.0f 50.0f (colour 1uy 2uy 4uy)))))
     check "a command of another kind is not the same" (not (Damage.same (List.head a) PopClip))
     check "a push and its pop are not the same" (not (Damage.same PopTransform PopClip) && Damage.same PopTransform PopTransform)
+
+    // two buttons changed that are far apart are two regions, and what lies between them is not drawn; two that touch are one
+    let farApart = Damage.between (frame 0) (list (panel @ button 0 true @ button 1 false @ button 2 true)) canvas
+    (match farApart with
+     | Damage.Regions rs -> check "two changes far apart are two regions" (rs.Length = 2 && not (Damage.touches rs.[0] rs.[1]))
+     | _ -> check "two changes far apart are regions" false)
+    let neighbours = Damage.between (frame 0) (list (panel @ button 0 true @ button 1 true @ button 2 false)) canvas
+    (match neighbours with
+     | Damage.Regions rs -> check "two buttons side by side with a gap of a few pixels are one region" (rs.Length = 1)
+     | _ -> check "two buttons side by side are a region" false)
 
     // a shape put in between: the region is where it is
     let extra = draw (rect 700.0f 300.0f 40.0f 40.0f (colour 200uy 0uy 0uy))

@@ -131,13 +131,42 @@ module Damage =
     type Change =
         /// the same pixels: nothing is drawn
         | Nothing
-        /// only here (on the canvas, CSS px), the rest is as it was
-        | Region of Rect
+        /// only here (on the canvas, CSS px: a few boxes that do not overlap), the rest is as it was
+        | Regions of Rect array
         /// too much, or not to be told: draw the whole canvas
         | Everything
 
-    /// A region larger than this share of the canvas is not worth the bookkeeping: the frame is drawn whole.
+    /// Regions together larger than this share of the canvas are not worth the bookkeeping: the frame is drawn whole.
     let private wholeShare = 0.5f
+    /// More boxes than this (after merging) are one box: every region costs a pass over the commands.
+    let private mostRegions = 6
+
+    let private area (r: Rect) : float32 = r.W * r.H
+
+    /// Boxes that overlap, or whose union is hardly larger than the two together (a button and its label), are one box; two that are far apart stay two (the pointer moving from one button to
+    /// another changes both, and what lies between is the same picture).
+    let private merge (boxes: ResizeArray<Rect>) : ResizeArray<Rect> =
+        let boxes = ResizeArray<Rect>(boxes)
+        let mutable again = true
+        while again do
+            again <- false
+            let mutable i = 0
+            while i < boxes.Count do
+                let mutable j = i + 1
+                while j < boxes.Count do
+                    let u = union boxes.[i] boxes.[j]
+                    if touches boxes.[i] boxes.[j] || area u <= 1.25f * (area boxes.[i] + area boxes.[j]) then
+                        boxes.[i] <- u
+                        boxes.RemoveAt j
+                        again <- true
+                    else j <- j + 1
+                i <- i + 1
+        boxes
+
+    let private isState (c: DrawCommand) : bool =
+        match c with
+        | PushClip _ | PushTransform _ | PushLayer _ | PopClip | PopTransform | PopLayer -> true
+        | _ -> false
 
     /// How many pushes a stretch of commands leaves open (negative: more pops than pushes), and how low that count goes on the way.
     let private depth (cs: ResizeArray<DrawCommand>) (from: int) (upTo: int) : struct (int * int) =
@@ -183,22 +212,42 @@ module Damage =
                 let stack = ResizeArray<State>()
                 let mutable st = initial
                 for i in 0 .. p - 1 do st <- advance stack st after.[i]
-                let mutable box = ValueNone
-                for (cs, upTo) in [ (before, na - q + e); (after, nb - q + e) ] do
-                    let local = ResizeArray<State>(stack)
-                    let mutable s = st
-                    for i in p .. upTo - 1 do
-                        match reach s cs.[i] with
-                        | ValueSome r -> box <- (match box with ValueSome b -> ValueSome (union b r) | ValueNone -> ValueSome r)
-                        | ValueNone -> ()
-                        s <- advance local s cs.[i]
-                match box with
-                | ValueSome r ->
+                let boxes = ResizeArray<Rect>()
+                let endBefore = na - q + e
+                let endAfter = nb - q + e
+                // the same number of commands in the stretch, and what differs in it are drawing commands set against drawing commands: only those are what changed (two buttons far
+                // apart are two regions, and the buttons between them, which are in the stretch, are not touched)
+                let mutable pairs = endBefore - p = endAfter - p
+                if pairs then
+                    for i in p .. endBefore - 1 do
+                        if not (same before.[i] after.[i]) && (isState before.[i] || isState after.[i]) then pairs <- false
+                if pairs then
+                    for i in p .. endBefore - 1 do
+                        if not (same before.[i] after.[i]) then
+                            (match reach st before.[i] with ValueSome r -> boxes.Add r | ValueNone -> ())
+                            (match reach st after.[i] with ValueSome r -> boxes.Add r | ValueNone -> ())
+                        st <- advance stack st after.[i]
+                else
+                    for (cs, upTo) in [ (before, endBefore); (after, endAfter) ] do
+                        let local = ResizeArray<State>(stack)
+                        let mutable s = st
+                        for i in p .. upTo - 1 do
+                            match reach s cs.[i] with
+                            | ValueSome r -> boxes.Add r
+                            | ValueNone -> ()
+                            s <- advance local s cs.[i]
+                // each box cut to the canvas; one that lies outside it is nothing
+                let cut = ResizeArray<Rect>()
+                for r in boxes do
                     let x0 = max canvas.X r.X
                     let y0 = max canvas.Y r.Y
                     let x1 = min (canvas.X + canvas.W) (r.X + r.W)
                     let y1 = min (canvas.Y + canvas.H) (r.Y + r.H)
-                    if x1 <= x0 || y1 <= y0 then Nothing
-                    elif (x1 - x0) * (y1 - y0) > wholeShare * canvas.W * canvas.H then Everything
-                    else Region (Rect.create x0 y0 (x1 - x0) (y1 - y0))
-                | ValueNone -> Nothing
+                    if x1 > x0 && y1 > y0 then cut.Add(Rect.create x0 y0 (x1 - x0) (y1 - y0))
+                if cut.Count = 0 then Nothing
+                else
+                    let merged = if cut.Count > 64 then ResizeArray<Rect>([ Seq.reduce union cut ]) else merge cut
+                    let merged = if merged.Count > mostRegions then ResizeArray<Rect>([ Seq.reduce union merged ]) else merged
+                    let mutable total = 0.0f
+                    for r in merged do total <- total + area r
+                    if total > wholeShare * area canvas then Everything else Regions (merged.ToArray())

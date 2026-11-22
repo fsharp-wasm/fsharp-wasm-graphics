@@ -97,10 +97,11 @@ type CanvasHost(text: ITextEngine) =
             let change = if needFull || fullFrames then Damage.Everything else Damage.between previous commands (Rect.create 0.0f 0.0f width height)
             match change with
             | Damage.Nothing -> ()
-            | Damage.Region r ->
-                Gfx.region (float r.X) (float r.Y) (float r.W) (float r.H)
-                CanvasSink.runIn r commands
-                Gfx.regionEnd ()
+            | Damage.Regions regions ->
+                for r in regions do
+                    Gfx.region (float r.X) (float r.Y) (float r.W) (float r.H)
+                    CanvasSink.runIn r commands
+                    Gfx.regionEnd ()
             | Damage.Everything ->
                 Gfx.beginFrame (float width) (float height) (float ratio)
                 CanvasSink.run commands
