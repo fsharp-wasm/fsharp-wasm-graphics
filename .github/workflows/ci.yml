@@ -26,6 +26,9 @@ jobs:
       - name: Interact tests (where a drag lands)
         run: dotnet run --project tests/FSharp.Graphics.InteractTests/FSharp.Graphics.InteractTests.fsproj -c Release
 
+      - name: Canvas tests (which part of the picture a frame changed)
+        run: dotnet run --project tests/FSharp.Graphics.CanvasTests/FSharp.Graphics.CanvasTests.fsproj -c Release
+
       - name: Math Tests
         run: dotnet run --project tests/FSharp.Math.Tests/FSharp.Math.Tests.fsproj -c Release
 
