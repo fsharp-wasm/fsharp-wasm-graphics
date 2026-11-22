@@ -40,15 +40,42 @@ A scene that declares a time dependence in no other way than `Animated` is drawn
 The pixels of two frames of the same scene are not always the same: with the same draw calls the soft shadows differ by up to 2 levels of 255 between a frame that has a layer of reduced opacity in it (a disabled button)
 and one that has not. The e2e tests compare pictures with a tolerance for that reason; the cause in the browser was not investigated.
 
-## 3. What is next (not measured yet; each needs its own measurement before and after)
+## 3. Where the time of a frame that is drawn goes (measured 2026-11-22)
 
-The 1 322 calls of a frame are what a build-time pre-compiler for the scene graph can cut:
+Section 2 counted per pointer move, most of which draw nothing. This one counts per frame that draws: the two header buttons of the editor are hovered alternately, so every move changes a hover state and draws.
+Same machine and browser as above (headless Chromium, which rasterises in software: the browser's own share is for this configuration only, a GPU changes it).
 
-- one `save`/`restore` pair and one `transform` per translated group, where a translation alone could be added to the coordinates (`save` 107, `restore` 107, `transform` 99 in a frame);
-- one `set fillStyle`, `beginPath`, `roundRect` and `fill` per rectangle, where consecutive rectangles of the same fill could be one path;
-- static parts (the palette, the panels) drawn once to an offscreen canvas and copied; only the parts that changed redrawn.
+| per drawn frame | |
+|---|---:|
+| busy, CPU profile (it slows the code by about 1.7x, so read the shares, not the milliseconds) | 6.9 ms |
+| the browser's own work (raster, paint, compositing) | 72 % |
+| F# code (build, resolve, emit, the sink) | 20 % |
+| JavaScript glue and the Canvas 2D calls, together | 4 % |
+| garbage collection | 3 % |
 
-## 4. How to measure again
+The callback of the animation frame, timed without a profiler (the part that the page's code owns; 500 drawn frames per run, two runs of each):
+
+| Canvas 2D methods and setters | callback, median |
+|---|---:|
+| real | 1.10 and 1.20 ms |
+| replaced by empty functions (`measureText` kept) | 0.40 and 0.30 ms |
+
+So of the 1.1 to 1.2 ms the page's code spends per drawn frame, **about 0.8 ms is the Canvas 2D calls themselves and about 0.3 to 0.4 ms is everything else**: building, resolving and emitting the scene,
+the roughly 690 calls from the module to JavaScript (that frame), and the glue. The crossing between WebAssembly and JavaScript is therefore at most a third of the page's own time and about 5 % of the
+frame: a flat command buffer that crosses once (see below) can win only that, and is not where to start.
+(A replay of the recorded calls in plain JavaScript took 0.2 ms; it leaves out the gradients and sets none of their styles, so it understates what the same calls cost in place. The difference of the table above is the number to use.)
+
+## 4. What is next, in the order the measurements give (each needs its own measurement before and after)
+
+1. **Draw less of the canvas.** The browser's share is the largest, and a frame clears and redraws the whole canvas for a change of one button. Redraw only the region that changed: clip to it and
+   emit the commands that touch it. (Pixel-exact against the full redraw: the e2e compares pictures.)
+2. **Fewer Canvas 2D calls** (the 0.8 ms): one `save`/`restore` pair and one `transform` per translated group where a translation alone could be added to the coordinates (`save` 107, `restore` 107,
+   `transform` 99 in a frame of the full scene); consecutive rectangles of the same *opaque* fill, or that do not overlap, as one path (not for translucent fills that overlap: they would be painted once).
+3. **Static parts drawn once** to an offscreen canvas and copied; only the parts that changed redrawn. This is what the build-time pre-compiler can produce for the parts of a scene that no model decides.
+4. **A flat command buffer in linear memory**, one call across the boundary a frame, with the protocol that `FSharp.Graphics.Render.Encode` and `FSharp.Graphics.Host.Reader` already are. It saves the
+   crossing and the allocation of the command list (about 5 % of a drawn frame by the numbers above), so it comes last, and only if the profile of the frame after 1 to 3 still shows it.
+
+## 5. How to measure again
 
 `tests/perf/frames.mjs` of fsharp-wasm-ide (`bash build/build.sh && node tests/perf/frames.mjs`) prints the three numbers of section 2 and 1: the Canvas 2D calls of a frame, the busy share of an untouched page over 3 s, and the CPU per pointer move split into
 F# code, glue, garbage collection and the browser. The method: wrap the methods of `CanvasRenderingContext2D.prototype` (`addInitScript`) and count per frame (a frame starts with `clearRect`); take a CPU profile (`Profiler.start` through a CDP
