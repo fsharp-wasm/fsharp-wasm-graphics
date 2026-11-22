@@ -69,18 +69,37 @@ the roughly 690 calls from the module to JavaScript (that frame), and the glue. 
 once (see below) can win only that and the allocation of the command list, and is not where to start.
 (A replay of the recorded calls in plain JavaScript took 0.2 ms; it leaves out the gradients and sets none of their styles, so it understates what the same calls cost in place. The difference of the table above is the number to use.)
 
-## 4. What is next, in the order the measurements give (each needs its own measurement before and after)
+## 4. A frame redraws only what changed (measured 2026-11-22)
 
-1. **Draw less of the canvas.** The browser's share is the largest, and a frame clears and redraws the whole canvas for a change of one button. Redraw only the region that changed: clip to it and
-   emit the commands that touch it. (Pixel-exact against the full redraw: the e2e compares pictures.)
-2. **Fewer Canvas 2D calls** (the 0.8 ms): one `save`/`restore` pair and one `transform` per translated group where a translation alone could be added to the coordinates (`save` 107, `restore` 107,
-   `transform` 99 in a frame of the full scene); consecutive rectangles of the same *opaque* fill, or that do not overlap, as one path (not for translucent fills that overlap: they would be painted once).
-3. **Static parts drawn once** to an offscreen canvas and copied; only the parts that changed redrawn. This is what the build-time pre-compiler can produce for the parts of a scene that no model decides.
-4. **A flat command buffer in linear memory**, one call across the boundary a frame, with the protocol that `FSharp.Graphics.Render.Encode` and `FSharp.Graphics.Host.Reader` already are. It saves the
-   crossing and the allocation of the command list (about 1 % and 4 % of the busy time of a drawn frame by the numbers above), so it comes last, and only if the profile of the frame after 1 to 3 still shows it.
+`CanvasHost` kept no memory of the canvas: every frame cleared it and drew all of it. It keeps the commands of the last frame now, `Damage.between` compares them with the new ones, and the canvas is
+clipped to the boxes of what differs (cleared there, whole device pixels) while `CanvasSink.runIn` draws only the commands that reach a box, with every transform, clip and layer around them that holds
+something in it. Nothing changed: nothing is drawn. Many changes, a changed transform or a different structure: the frame is drawn whole, as before. What a frame is made of is compared by value
+(`Damage.same`), the boxes leave room for strokes, shadows, blurred layers and glyphs, and two boxes are one when they overlap or their union is hardly larger than the two.
 
-## 5. How to measure again
+The same eight hovers and the same loop as in section 3 (the editor, the two header buttons hovered alternately, 500 frames):
 
-`tests/perf/frames.mjs` of fsharp-wasm-ide (`bash build/build.sh && node tests/perf/frames.mjs`) prints the three numbers of section 2 and 1: the Canvas 2D calls of a frame, the busy share of an untouched page over 3 s, and the CPU per pointer move split into
+| per drawn frame | before | after |
+|---|---:|---:|
+| Canvas 2D calls | 1 322 | 67 to 89 |
+| callback of the animation frame, median (no profiler) | 1.1 ms | 0.4 ms |
+| busy time, CPU profile (slowed by the profiler) | 5.4 ms | 1.65 ms |
+| of it the browser's own work (raster, paint, compositing) | 3.8 ms | 1.0 ms |
+| of it F# (the module; the comparison of two command lists is in it now) | 0.35 ms | 0.33 ms |
+
+`tests/e2e/redraw.mjs` of fsharp-wasm-ide runs the editor twice side by side (the second with `?fullframes`, every frame whole), sends the same events to both (hovers, clicks, Undo, drags from the
+palette, a drag cancelled, text in the inspector, preview, the code panel, a seeded walk of 60 moves, a resize) and compares the two canvases pixel by pixel after each step (the tolerance is the 2 of 255
+that soft shadows differ by anyway): no pixel beyond it.
+
+## 5. What is next (not measured yet; each needs its own measurement before and after)
+
+1. **Fewer Canvas 2D calls in a frame that is drawn whole** (a resize, a preview, a panel that opens, 1 322 calls): a `save`/`restore` pair and a `transform` per translated group where a translation
+   alone could be added to the coordinates; consecutive rectangles of the same *opaque* fill, or that do not overlap, as one path (not for translucent fills that overlap).
+2. **Static parts drawn once** to an offscreen canvas and copied; only the parts that changed redrawn. What the build-time pre-compiler can produce for the parts of a scene that no model decides.
+3. **A flat command buffer in linear memory**, one call across the boundary a frame, with the protocol that `FSharp.Graphics.Render.Encode` and `FSharp.Graphics.Host.Reader` already are. It saves the
+   crossing and the allocation of the command list (about 1 % and 4 % of the busy time of a drawn frame by the numbers of section 3), so it comes last.
+
+## 6. How to measure again
+
+`tests/perf/frames.mjs` of fsharp-wasm-ide (`bash build/build.sh && node tests/perf/frames.mjs`) prints the three numbers of sections 1 and 2: the Canvas 2D calls of a frame, the busy share of an untouched page over 3 s, and the CPU per pointer move split into
 F# code, glue, garbage collection and the browser. The method: wrap the methods of `CanvasRenderingContext2D.prototype` (`addInitScript`) and count per frame (a frame starts with `clearRect`); take a CPU profile (`Profiler.start` through a CDP
 session) and add up the self time per function name (the names of the module's name section are in the profile). The builder microbenchmark of section 1 is a program of one file that builds the same scene both ways in a loop and returns the number of nodes.
