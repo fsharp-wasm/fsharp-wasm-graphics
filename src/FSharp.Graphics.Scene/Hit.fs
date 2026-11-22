@@ -63,7 +63,8 @@ module Hit =
     type Dispatcher() =
         let mutable hover   : Target[] = [||]
         let mutable pressed : Target[] = [||]
-        /// Where the pointer was last seen: keys and the wheel go to what is there in the scene of the moment.
+        /// Where the pointer was last seen: keys and the wheel go to what is there in the scene of the moment.  Before it has been seen (a page that is
+        /// typed into at once) that is the origin of the scene, where its root is.
         let mutable pointer : Vec2 voption = ValueNone
 
         let has (ts: Target[]) (t: Target) = ts |> Array.exists (fun x -> x.Id = t.Id)
@@ -107,7 +108,5 @@ module Hit =
             // The handlers of THIS frame under the pointer, not the ones that were there when the pointer last moved: those closed over the state of that frame (the focus, a
             // text), and a key pressed since would act on it.
             | Scroll _ | KeyDown _ | KeyUp _ ->
-                (match pointer with
-                 | ValueSome p -> bubble (pick scene p) evt
-                 | ValueNone -> false)
+                bubble (pick scene (match pointer with ValueSome p -> p | ValueNone -> Vec2.Zero)) evt
             | PointerEnter _ | PointerLeave _ -> false

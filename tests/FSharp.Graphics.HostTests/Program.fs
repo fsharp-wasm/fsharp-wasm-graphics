@@ -188,7 +188,7 @@ let hitTests () =
     d2.Handle(frameOf 2, KeyDown "A") |> ignore
     d2.Handle(frameOf 3, Scroll(v 0.0f 5.0f)) |> ignore
     check "a key and the wheel reach the handler of the current frame, not of the frame of the last pointer move" (List.ofSeq seen = [ 2; 3 ])
-    check "a key before any pointer has moved reaches nothing" (not ((Hit.Dispatcher()).Handle(frameOf 4, KeyDown "A")))
+    check "a key before any pointer has moved goes to the root of the scene, at its origin" ((Hit.Dispatcher()).Handle(frameOf 4, KeyDown "A"))
     seen.Clear()
     d2.Handle(frameOf 5, PointerMove(v 500.0f 500.0f)) |> ignore
     check "a key with the pointer outside every handler reaches nothing" (not (d2.Handle(frameOf 6, KeyDown "A")) && seen.Count = 0)
