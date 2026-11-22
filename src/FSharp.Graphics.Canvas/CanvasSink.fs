@@ -168,15 +168,34 @@ module CanvasSink =
     let run (commands: ResizeArray<DrawCommand>) : unit =
         for i in 0 .. commands.Count - 1 do draw commands.[i]
 
-    /// Draw what lies in `region` (the canvas has been cleared there and clipped to it): the commands that change the state always, the ones that draw only when what they can reach touches
-    /// the region.  The pixels inside come out as in a frame that is drawn whole, because every command that could reach them is drawn, in its order.
+    /// Draw what lies in `region` (the canvas has been cleared there and clipped to it): the commands that draw only when what they can reach touches the region, and the state commands
+    /// only around such a command (a transform, a clip or a layer that holds nothing in the region is not entered at all).  The pixels inside come out as in a frame that is drawn whole,
+    /// because every command that could reach them is drawn, in its order, under the state it has there.
     let runIn (region: Rect) (commands: ResizeArray<DrawCommand>) : unit =
-        let stack = ResizeArray<Damage.State>()
-        let mutable st = Damage.initial
-        for i in 0 .. commands.Count - 1 do
+        let n = commands.Count
+        let keep : bool[] = Array.zeroCreate n
+        let needed : bool[] = Array.zeroCreate n          // for a push: something inside it is drawn
+        let open' = ResizeArray<int>()                    // the pushes that are open
+        let mutable depthState = Damage.initial
+        let states = ResizeArray<Damage.State>()
+        for i in 0 .. n - 1 do
             let c = commands.[i]
-            match Damage.reach st c with
-            | ValueSome box -> if Damage.touches region box then draw c
+            match Damage.reach depthState c with
+            | ValueSome box ->
+                if Damage.touches region box then
+                    keep.[i] <- true
+                    for k in 0 .. open'.Count - 1 do needed.[open'.[k]] <- true
             | ValueNone ->
-                draw c
-                st <- Damage.advance stack st c
+                (match c with
+                 | PushClip _ | PushTransform _ | PushLayer _ -> open'.Add i
+                 | PopClip | PopTransform | PopLayer ->
+                     if open'.Count > 0 then
+                         let pushed = open'.[open'.Count - 1]
+                         open'.RemoveAt(open'.Count - 1)
+                         if needed.[pushed] then
+                             keep.[pushed] <- true
+                             keep.[i] <- true
+                 | _ -> ())
+                depthState <- Damage.advance states depthState c
+        for i in 0 .. n - 1 do
+            if keep.[i] then draw commands.[i]
