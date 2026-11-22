@@ -11,7 +11,13 @@ open FSharp.Graphics.Scene
 /// a model calls when its model changed) or when an `Animated` node of the scene is due; before, an editor drew every frame.
 type CanvasHost(text: ITextEngine) =
     let dispatcher = Hit.Dispatcher()
-    let commands = ResizeArray<DrawCommand>(2048)
+    let mutable commands = ResizeArray<DrawCommand>(2048)
+    /// The commands of the frame that is on the canvas: the next frame is compared with them and redraws what differs (see `Damage`).
+    let mutable previous = ResizeArray<DrawCommand>(2048)
+    /// The canvas has no frame that can be compared with (the first one, a new size): the next frame is drawn whole.
+    let mutable needFull = true
+    /// The page asked for every frame to be drawn whole (`?fullframes`), which the tests use to compare the two ways.
+    let mutable fullFrames = false
     let mutable resolved = Scene.Empty
     let mutable width = 1024.0f
     let mutable height = 768.0f
@@ -52,6 +58,7 @@ type CanvasHost(text: ITextEngine) =
         height <- h
         ratio <- r
         dirty <- true
+        needFull <- true
 
     /// Draw the next frame although nothing animates (the model changed behind the host's back).
     member _.Invalidate() = dirty <- true
@@ -86,5 +93,18 @@ type CanvasHost(text: ITextEngine) =
             rebuild nowMs
             commands.Clear()
             Emit.emit commands resolved
-            Gfx.beginFrame (float width) (float height) (float ratio)
-            CanvasSink.run commands
+            if needFull then fullFrames <- Gfx.fullFrames () <> 0
+            let change = if needFull || fullFrames then Damage.Everything else Damage.between previous commands (Rect.create 0.0f 0.0f width height)
+            match change with
+            | Damage.Nothing -> ()
+            | Damage.Region r ->
+                Gfx.region (float r.X) (float r.Y) (float r.W) (float r.H)
+                CanvasSink.runIn r commands
+                Gfx.regionEnd ()
+            | Damage.Everything ->
+                Gfx.beginFrame (float width) (float height) (float ratio)
+                CanvasSink.run commands
+            needFull <- false
+            let drawn = commands
+            commands <- previous
+            previous <- drawn

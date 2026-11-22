@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- The canvas host: a resolved Scene drawn onto one <canvas> through the functions of runtime/gfx.js (fsharp-wasm-runtime).
-       Gfx are the imports, CanvasTextEngine measures text with the canvas, Emit turns a Scene into draw commands, CanvasSink
-       replays them, CanvasHost is the frame plumbing (size, input, build -> resolve -> emit -> draw) that every module
+       Gfx are the imports, CanvasTextEngine measures text with the canvas, Emit turns a Scene into draw commands, Damage finds what a frame changed against the one before, CanvasSink
+       replays them (whole, or the part that changed), CanvasHost is the frame plumbing (size, input, build -> resolve -> emit -> draw) that every module
        drawing onto a canvas needs.  A module that uses it (the scene gallery, the widget editor of fsharp-wasm-ide) only
        supplies the scene and its exports.  Meant for fsharp-wasm; under .NET it builds, the imports are nativeOnly stubs. -->
   <PropertyGroup>
@@ -20,6 +20,7 @@
     <Compile Include="Gfx.fs" />
     <Compile Include="CanvasText.fs" />
     <Compile Include="Emit.fs" />
+    <Compile Include="Damage.fs" />
     <Compile Include="CanvasSink.fs" />
     <Compile Include="CanvasHost.fs" />
   </ItemGroup>

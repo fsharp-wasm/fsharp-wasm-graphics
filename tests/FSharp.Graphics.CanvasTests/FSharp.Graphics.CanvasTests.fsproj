@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The tests of what the canvas host decides without a canvas: which part of the picture a frame changed against the one before (FSharp.Graphics.Canvas.Damage).  Plain checks, no framework,
+       so that the same file runs under .NET (`dotnet run`: the exit code is the number of failures) and compiles with fsharp-wasm. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>FSharp.Graphics.CanvasTests</AssemblyName>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Tests.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FSharp.Graphics.Canvas/FSharp.Graphics.Canvas.fsproj" />
+  </ItemGroup>
+</Project>

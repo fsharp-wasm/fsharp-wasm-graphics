@@ -55,29 +55,6 @@ module CanvasSink =
                 Gfx.restore ()
         | GOpaque b -> Gfx.roundRect (float b.X) (float b.Y) (float b.W) (float b.H) 0.0 0.0 0.0 0.0
 
-    let private geometryBounds (g: ShapeGeometry) : Rect =
-        match g with
-        | GRect(b, _) | GOpaque b -> b
-        | GCircle(c, r) -> Rect.create (c.X - r) (c.Y - r) (2.0f * r) (2.0f * r)
-        | GEllipse(c, rx, ry) -> Rect.create (c.X - rx) (c.Y - ry) (2.0f * rx) (2.0f * ry)
-        | GLine(a, b, t) ->
-            let x0 = min a.X b.X - t * 0.5f
-            let y0 = min a.Y b.Y - t * 0.5f
-            Rect.create x0 y0 (max a.X b.X + t * 0.5f - x0) (max a.Y b.Y + t * 0.5f - y0)
-        | GPolygon vs ->
-            if vs.Length = 0 then Rect.zero
-            else
-                let mutable x0 = vs.[0].X
-                let mutable y0 = vs.[0].Y
-                let mutable x1 = x0
-                let mutable y1 = y0
-                for v in vs do
-                    if v.X < x0 then x0 <- v.X
-                    if v.Y < y0 then y0 <- v.Y
-                    if v.X > x1 then x1 <- v.X
-                    if v.Y > y1 then y1 <- v.Y
-                Rect.create x0 y0 (x1 - x0) (y1 - y0)
-
     /// Make `p` the current fill style.
     let private setPaint (p: Paint) : unit =
         match p with
@@ -129,7 +106,7 @@ module CanvasSink =
             Gfx.pathBegin ()
             addGeometry g
             Gfx.clipPath ()
-            let b = geometryBounds g
+            let b = Damage.geometryBounds g
             let sigma = max (sh.Blur * 0.5f) 0.01f
             let margin = 4.0f * sigma + abs sh.Spread + abs sh.Offset.X + abs sh.Offset.Y + 8.0f
             Gfx.shadowBegin (float sh.Offset.X) (float sh.Offset.Y) blur (int sh.Color.R) (int sh.Color.G) (int sh.Color.B) (int sh.Color.A)
@@ -155,34 +132,51 @@ module CanvasSink =
             Gfx.text (sb.ToString()) (float first.X) (float first.Y) (float size) 400 (int color.R) (int color.G) (int color.B) (int color.A)
             i <- j
 
+    /// Draw one command (the state commands included).
+    let private draw (c: DrawCommand) : unit =
+        match c with
+        | DrawRect(b, r, p) -> fillGeometry (GRect(b, r)) p
+        | DrawCircle(c, r, p) -> fillGeometry (GCircle(c, r)) p
+        | DrawEllipse(c, rx, ry, p) -> fillGeometry (GEllipse(c, rx, ry)) p
+        | DrawPath(s, p) -> fillGeometry s.Geometry p
+        | DrawStroke(s, st) -> strokeGeometry s.Geometry st
+        | DrawShadow(s, sh) -> shadow s.Geometry sh
+        | DrawTextBatch(_, size, glyphs, color) -> text size color glyphs
+        | DrawImage(_, r, opacity) ->
+            Gfx.solid 200 200 200 (int (255.0f * (min 1.0f (max 0.0f opacity))))
+            Gfx.pathBegin ()
+            Gfx.roundRect (float r.X) (float r.Y) (float r.W) (float r.H) 0.0 0.0 0.0 0.0
+            Gfx.fill ()
+        | PushClip r ->
+            Gfx.save ()
+            Gfx.clip (float r.X) (float r.Y) (float r.W) (float r.H)
+        | PopClip -> Gfx.restore ()
+        | PushTransform m ->
+            Gfx.save ()
+            Gfx.transform (float m.M11) (float m.M12) (float m.M21) (float m.M22) (float m.M31) (float m.M32)
+        | PopTransform -> Gfx.restore ()
+        | PushLayer lp ->
+            Gfx.save ()
+            Gfx.layer (float lp.Alpha) (blendIndex lp.Blend) (float lp.BlurSigma)
+            if lp.Filter.Length = 20 then
+                Gfx.matrixBegin ()
+                for v in lp.Filter do Gfx.matrixValue (float v)
+                Gfx.matrixUse ()
+        | PopLayer -> Gfx.restore ()
+
+    /// Draw a frame: every command, in order.
     let run (commands: ResizeArray<DrawCommand>) : unit =
+        for i in 0 .. commands.Count - 1 do draw commands.[i]
+
+    /// Draw what lies in `region` (the canvas has been cleared there and clipped to it): the commands that change the state always, the ones that draw only when what they can reach touches
+    /// the region.  The pixels inside come out as in a frame that is drawn whole, because every command that could reach them is drawn, in its order.
+    let runIn (region: Rect) (commands: ResizeArray<DrawCommand>) : unit =
+        let stack = ResizeArray<Damage.State>()
+        let mutable st = Damage.initial
         for i in 0 .. commands.Count - 1 do
-            match commands.[i] with
-            | DrawRect(b, r, p) -> fillGeometry (GRect(b, r)) p
-            | DrawCircle(c, r, p) -> fillGeometry (GCircle(c, r)) p
-            | DrawEllipse(c, rx, ry, p) -> fillGeometry (GEllipse(c, rx, ry)) p
-            | DrawPath(s, p) -> fillGeometry s.Geometry p
-            | DrawStroke(s, st) -> strokeGeometry s.Geometry st
-            | DrawShadow(s, sh) -> shadow s.Geometry sh
-            | DrawTextBatch(_, size, glyphs, color) -> text size color glyphs
-            | DrawImage(_, r, opacity) ->
-                Gfx.solid 200 200 200 (int (255.0f * (min 1.0f (max 0.0f opacity))))
-                Gfx.pathBegin ()
-                Gfx.roundRect (float r.X) (float r.Y) (float r.W) (float r.H) 0.0 0.0 0.0 0.0
-                Gfx.fill ()
-            | PushClip r ->
-                Gfx.save ()
-                Gfx.clip (float r.X) (float r.Y) (float r.W) (float r.H)
-            | PopClip -> Gfx.restore ()
-            | PushTransform m ->
-                Gfx.save ()
-                Gfx.transform (float m.M11) (float m.M12) (float m.M21) (float m.M22) (float m.M31) (float m.M32)
-            | PopTransform -> Gfx.restore ()
-            | PushLayer lp ->
-                Gfx.save ()
-                Gfx.layer (float lp.Alpha) (blendIndex lp.Blend) (float lp.BlurSigma)
-                if lp.Filter.Length = 20 then
-                    Gfx.matrixBegin ()
-                    for v in lp.Filter do Gfx.matrixValue (float v)
-                    Gfx.matrixUse ()
-            | PopLayer -> Gfx.restore ()
+            let c = commands.[i]
+            match Damage.reach st c with
+            | ValueSome box -> if Damage.touches region box then draw c
+            | ValueNone ->
+                draw c
+                st <- Damage.advance stack st c

@@ -11,6 +11,15 @@ module Gfx =
     [<Import("begin", "runtime/gfx.js")>]
     let beginFrame (w: float) (h: float) (ratio: float) : unit = nativeOnly
 
+    /// Redraw only this part of the canvas (CSS px): clip to it and clear it; `regionEnd` gives the clip back.
+    [<Import("region", "runtime/gfx.js")>]
+    let region (x: float) (y: float) (w: float) (h: float) : unit = nativeOnly
+    [<Import("regionEnd", "runtime/gfx.js")>]
+    let regionEnd () : unit = nativeOnly
+    /// 1 when the page asks for every frame to be drawn whole (`?fullframes`), 0 otherwise.
+    [<Import("fullFrames", "runtime/gfx.js")>]
+    let fullFrames () : int = nativeOnly
+
     [<Import("save", "runtime/gfx.js")>]
     let save () : unit = nativeOnly
     [<Import("restore", "runtime/gfx.js")>]
