@@ -45,13 +45,17 @@ and one that has not. The e2e tests compare pictures with a tolerance for that r
 Section 2 counted per pointer move, most of which draw nothing. This one counts per frame that draws: the two header buttons of the editor are hovered alternately, so every move changes a hover state and draws.
 Same machine and browser as above (headless Chromium, which rasterises in software: the browser's own share is for this configuration only, a GPU changes it).
 
-| per drawn frame | |
+| per drawn frame (two runs of 500 frames; `tests/perf/drawn-frame.mjs` of fsharp-wasm-ide) | share of the busy time |
 |---|---:|
-| busy, CPU profile (it slows the code by about 1.7x, so read the shares, not the milliseconds) | 6.9 ms |
-| the browser's own work (raster, paint, compositing) | 72 % |
-| F# code (build, resolve, emit, the sink) | 20 % |
-| JavaScript glue and the Canvas 2D calls, together | 4 % |
-| garbage collection | 3 % |
+| the browser's own work (raster, paint, compositing) | 71 % |
+| the browser's Canvas 2D methods (`fill`, `fillText`, `roundRect` ...), called by the glue | 12 % |
+| F# code (build, resolve, emit, the sink) | 6 to 7 % |
+| JavaScript glue (`gfx.js`) | 5 % |
+| garbage collection | 4 % |
+| the crossing from the module into JavaScript (`wasm-to-js`) | 1 % |
+
+The profile slows the code by about 1.7 times, so read the shares, not the milliseconds (4.9 to 5.4 ms busy per drawn frame).
+(An earlier version of this table counted the browser's own methods, which the profiler lists without a url, as F# code; the corrected split is the one above.)
 
 The callback of the animation frame, timed without a profiler (the part that the page's code owns; 500 drawn frames per run, two runs of each):
 
@@ -61,8 +65,8 @@ The callback of the animation frame, timed without a profiler (the part that the
 | replaced by empty functions (`measureText` kept) | 0.40 and 0.30 ms |
 
 So of the 1.1 to 1.2 ms the page's code spends per drawn frame, **about 0.8 ms is the Canvas 2D calls themselves and about 0.3 to 0.4 ms is everything else**: building, resolving and emitting the scene,
-the roughly 690 calls from the module to JavaScript (that frame), and the glue. The crossing between WebAssembly and JavaScript is therefore at most a third of the page's own time and about 5 % of the
-frame: a flat command buffer that crosses once (see below) can win only that, and is not where to start.
+the roughly 690 calls from the module to JavaScript (that frame), and the glue. The crossing between WebAssembly and JavaScript is 1 % of the busy time in the profile: a flat command buffer that crosses
+once (see below) can win only that and the allocation of the command list, and is not where to start.
 (A replay of the recorded calls in plain JavaScript took 0.2 ms; it leaves out the gradients and sets none of their styles, so it understates what the same calls cost in place. The difference of the table above is the number to use.)
 
 ## 4. What is next, in the order the measurements give (each needs its own measurement before and after)
@@ -73,7 +77,7 @@ frame: a flat command buffer that crosses once (see below) can win only that, an
    `transform` 99 in a frame of the full scene); consecutive rectangles of the same *opaque* fill, or that do not overlap, as one path (not for translucent fills that overlap: they would be painted once).
 3. **Static parts drawn once** to an offscreen canvas and copied; only the parts that changed redrawn. This is what the build-time pre-compiler can produce for the parts of a scene that no model decides.
 4. **A flat command buffer in linear memory**, one call across the boundary a frame, with the protocol that `FSharp.Graphics.Render.Encode` and `FSharp.Graphics.Host.Reader` already are. It saves the
-   crossing and the allocation of the command list (about 5 % of a drawn frame by the numbers above), so it comes last, and only if the profile of the frame after 1 to 3 still shows it.
+   crossing and the allocation of the command list (about 1 % and 4 % of the busy time of a drawn frame by the numbers above), so it comes last, and only if the profile of the frame after 1 to 3 still shows it.
 
 ## 5. How to measure again
 
