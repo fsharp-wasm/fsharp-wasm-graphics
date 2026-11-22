@@ -218,6 +218,25 @@ let scrollTests () =
     d.Handle(scene, PointerUp(q, 0)) |> ignore
     check "a press on the empty part of the region focuses the region" (state.Focus = Some "scroll")
 
+/// A host that draws only what changed asks the scene whether it changes with the clock: only a caret that blinks does, and only while its field has the focus.
+let clockTests () =
+    section "What changes with the clock"
+    reset ()
+    let ui = mkUi ()
+    let field (focused: bool) =
+        let ui = if focused then { ui with State = { ui.State with Focus = Some "f" } } else ui
+        TextField.viewNamed ui "f" "Name" ignore { Value = "Ada"; Placeholder = ""; Width = 200.0f }
+    check "a text field that has no focus does not depend on the clock" (not (isAnimating 0.0f (field false)))
+    check "a text field that has the focus blinks, whenever one looks" (isAnimating 0.0f (field true) && isAnimating 987654.0f (field true))
+    check "a button and a label stand still" (not (isAnimating 0.0f (Group [ Button.view ui "b" (Button.make "Save" ignore); Label.view ui Label.Body "Hello" ])))
+    check "a finite animation asks for frames until it has run, then no more"
+        (let a = Animated(Transition.linear 500, Empty)
+         isAnimating 100.0f a && not (isAnimating 500.0f a))
+    check "an animation inside a transform, a clip, an opacity and a mask is found"
+        (let a = Animated(Transition.loop (Transition.linear 500), Empty)
+         [ Transform(Mat3x2.identity, a); Clip(Rect.create 0.0f 0.0f 1.0f 1.0f, a); Opacity(0.5f, a); Mask(Empty, a); Mask(a, Empty); Group [ Empty; Padding(Insets.zero, a) ] ]
+         |> List.forall (isAnimating 0.0f))
+
 [<EntryPoint>]
 let main _ =
     contrastTests ()
@@ -225,6 +244,7 @@ let main _ =
     placementTests ()
     keyboardTests ()
     scrollTests ()
+    clockTests ()
     printfn ""
     if failures.Count = 0 then printfn "%d passed, 0 failed" passed; 0
     else printfn "%d passed, %d failed" passed failures.Count; 1
