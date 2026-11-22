@@ -1,5 +1,9 @@
 # fsharp-wasm-graphics
 
+<!-- platform -->
+> **Part of the [fsharp-wasm platform](https://fsharp-wasm.github.io/projects/)**: graphics and text. Builds on [core](https://github.com/fsharp-wasm/fsharp-wasm-core), [glyph-aura](https://github.com/fsharp-wasm/fsharp-glyph-aura). Used by [ide](https://github.com/fsharp-wasm/fsharp-wasm-ide), [backend](https://github.com/fsharp-wasm/fsharp-wasm-backend) (the canvas client), [runtime](https://github.com/fsharp-wasm/fsharp-wasm-runtime) (the scene gallery).
+> [All projects](https://fsharp-wasm.github.io/projects/) · [Roadmap](https://fsharp-wasm.github.io/docs/roadmap/) · [Tests](https://fsharp-wasm.github.io/tests/) · [Benchmarks](https://fsharp-wasm.github.io/benchmarks/) · [Live demos](https://fsharp-wasm.github.io/demos/)
+
 A retained-mode 2D graphics stack in F#: vectors and colours, an SDF primitive library, a scene graph with layout and text, a
 widget library, a TEA runtime, and hosts that draw the result. It is written for [fsharp-wasm](https://github.com/fsharp-wasm/fsharp-wasm)
 (F# → WebAssembly GC) and has no third-party dependency in its libraries: the base is `FSharp.Math` and
