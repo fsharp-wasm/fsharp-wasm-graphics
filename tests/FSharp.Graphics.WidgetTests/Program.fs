@@ -229,6 +229,12 @@ let clockTests () =
     check "a text field that has no focus does not depend on the clock" (not (isAnimating 0.0f (field false)))
     check "a text field that has the focus blinks, whenever one looks" (isAnimating 0.0f (field true) && isAnimating 987654.0f (field true))
     check "a button and a label stand still" (not (isAnimating 0.0f (Group [ Button.view ui "b" (Button.make "Save" ignore); Label.view ui Label.Body "Hello" ])))
+    check "a caret sleeps between its steps: it asks to be drawn again when the next half second begins, never 'now'"
+        (let d t = animationDelay t (field true)
+         d 0.0f = ValueSome 500.0f && d 100.0f = ValueSome 400.0f && d 500.0f = ValueSome 500.0f && d 1234.0f = ValueSome 266.0f)
+    check "an animation that moves continuously asks for a frame every time; with a caret next to it, too"
+        (animationDelay 100.0f (Group [ field true; Animated(Transition.loop (Transition.linear 300), Empty) ]) = ValueSome 0.0f)
+    check "a scene that stands still has no delay" (animationDelay 100.0f (field false) = ValueNone)
     check "a finite animation asks for frames until it has run, then no more"
         (let a = Animated(Transition.linear 500, Empty)
          isAnimating 100.0f a && not (isAnimating 500.0f a))

@@ -267,8 +267,8 @@ module TextField =
                 let x = 10.0f + Ui.textWidth ui th.FontSize p.Value + 1.0f
                 rectangle { bounds x (ty - 1.0f) 1.5f (th.FontSize * 1.2f + 2.0f); fill th.Text }
             else Empty
-        // the caret depends on the clock: say so (a host that draws only what changed keeps drawing while this node runs)
-        let blinking = if focused then Animated(Transition.loop (Transition.linear 500), caret) else Empty
+        // the caret depends on the clock, in steps of 500 ms (see `caretOn`): say so, and a host that draws only what changed wakes up at each step and sleeps in between
+        let blinking = if focused then Animated({ Transition.loop (Transition.linear 1000) with Easing = Steps(2, JumpStart) }, caret) else Empty
         let clipped = Clip(Rect.create 0.0f 0.0f p.Width h, Group [ label; blinking ])
         let act (a: SemanticAction) = match a with SemanticAction.SetText t -> onChange t | _ -> ()
         Ui.semantic ui id Role.TextBox name (fun s -> { s with Value = p.Value; Description = p.Placeholder }) act

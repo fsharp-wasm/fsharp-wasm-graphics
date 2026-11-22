@@ -8,7 +8,7 @@ open FSharp.Graphics.Scene
 /// The frame plumbing of a module that draws onto one canvas: the size, the input, and build -> resolve -> emit -> draw.
 /// All mutable state of the page lives in this one object (a module-level `let mutable` is a wasm global; this keeps it
 /// together).  A frame is built and drawn only when something changed (a resize, an event a handler took, `Invalidate`, which a host that owns
-/// a model calls when its model changed) or while the scene has an `Animated` node that is still running; before, an editor drew every frame.
+/// a model calls when its model changed) or when an `Animated` node of the scene is due; before, an editor drew every frame.
 type CanvasHost(text: ITextEngine) =
     let dispatcher = Hit.Dispatcher()
     let commands = ResizeArray<DrawCommand>(2048)
@@ -18,8 +18,9 @@ type CanvasHost(text: ITextEngine) =
     let mutable ratio = 1.0f
     let mutable started = -1.0
     let mutable dirty = true
-    /// The scene of the last frame has an `Animated` node that is still running: another frame is due although nothing else changed.
-    let mutable animating = false
+    /// When the next frame is due although nothing else changed, because the scene of the last frame depends on the clock (a caret that blinks: the time of the next step; a running
+    /// animation: now, so every frame); negative: nothing depends on the clock.
+    let mutable wakeAt = -1.0
     /// What the last frame was built with, so that the scene can be built again between two frames (see `Input`).
     let mutable build : (float32 -> Vec2 -> Scene) option = None
     let mutable designWidth = 0.0f
@@ -34,7 +35,10 @@ type CanvasHost(text: ITextEngine) =
             elapsed <- float32 (nowMs - started)
             let scene = b elapsed size
             resolved <- Resolve.resolve text size.X (if k < 1.0f then Scene.scale k k scene else scene)
-            animating <- SceneCombinators.isAnimating elapsed resolved
+            wakeAt <-
+                match SceneCombinators.animationDelay elapsed resolved with
+                | ValueSome d -> nowMs + float d
+                | ValueNone -> -1.0
         | None -> ()
 
     /// CSS width of the canvas in pixels.
@@ -68,14 +72,14 @@ type CanvasHost(text: ITextEngine) =
         handled
 
     /// One animation frame at `nowMs`.  The scene is built, resolved and drawn when something changed since the last frame
-    /// (a resize, an event a handler took, `Invalidate`), when the last scene has an `Animated` node still running (a caret that blinks),
-    /// or when `animated` (the caller knows that the scene depends on the clock without declaring it: rare);
+    /// (a resize, an event a handler took, `Invalidate`), when the last scene has an `Animated` node that is due (a running animation: every frame; a stepped one such as a caret that
+    /// blinks: at its next step), or when `animated` (the caller knows that the scene depends on the clock without declaring it: rare);
     /// a canvas keeps its pixels between frames, so an idle page does no work but the call of this function; `build time size` gets the milliseconds since the last `Restart` and the size of the canvas in
     /// the units of the scene.  A canvas narrower than `designWidth` shows the scene scaled down to fit (hit testing follows
     /// the transform); 0 never scales.
     member _.Frame(nowMs: float, animated: bool, designW: float32, buildScene: float32 -> Vec2 -> Scene) =
         if started < 0.0 then started <- nowMs
-        if animated || animating || dirty then
+        if animated || dirty || (wakeAt >= 0.0 && nowMs >= wakeAt) then
             dirty <- false
             build <- Some buildScene
             designWidth <- designW
