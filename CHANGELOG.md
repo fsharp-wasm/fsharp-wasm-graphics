@@ -5,6 +5,9 @@ All notable changes to this repository are documented here (newest first).
 ## [Unreleased]
 
 ### Fixed
+- **A key before the pointer has been seen is no longer dropped** (`Hit.Dispatcher`): it goes to what is at the origin of the scene, where the root is, so a page that is typed into at once works (it reached nothing until the pointer had moved). The check that said a key "reaches nothing" before any pointer movement said so by mistake and now says what is meant.
+- **A widget inside a `ScrollView` can be reached** (`ScrollView.viewNamed`): the transparent area the region answers for was drawn above its content, and a picked shape hides what is under it, so no press got through to a button, a check box or a field in the region. It is below the content now; where there is no content, the region still answers (a press focuses it). Checked: a button in a `ScrollView` is clicked and focused (92 widget checks).
+- **Two keys or presses within one frame each meet the state the one before made** (`CanvasHost.Input`): the scene was built once per frame, so Tab, Tab (key repeat, a script, a quick tap) both acted on the state of the frame before and the focus moved once. A key or a press that follows an event that changed the model within the same frame builds the scene again first; the movement of the pointer does not (it comes a thousand times a second). The parameters of `Frame` are called `designW` and `buildScene` now (they hid the host's own state).
 - Keys and the wheel go to the handlers of the **current** frame under the pointer (`Hit.Dispatcher`), not to the ones of the frame in which the pointer last moved. Those closed over the state of that frame, so a key (Tab, with the focus of the moment) acted on an old one; it showed as the keyboard focus jumping to the first control.
 
 ### Changed
