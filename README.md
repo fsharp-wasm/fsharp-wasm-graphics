@@ -34,6 +34,7 @@ Model ──View──▶ Scene ──Resolve──▶ positioned Scene ──Em
 `FSharp.Graphics.Canvas` and `runtime/gfx.js` of fsharp-wasm-runtime, whose pages run it live. The widget editor, which draws through
 the same canvas host, is in [fsharp-wasm-ide](https://github.com/fsharp-wasm/fsharp-wasm-ide).
 `docs/consolidation.md` lists what is still duplicated and the order to remove it.
+`docs/performance.md` has what was measured of the canvas stack (what the builders cost, what a frame costs, why an idle page draws nothing) and what is next.
 
 ## Build, test, pack
 
