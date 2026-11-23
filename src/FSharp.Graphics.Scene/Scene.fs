@@ -177,5 +177,31 @@ module Scene =
     let group children          = Group children
     let empty                   = Empty
 
+    /// The scene with `f` applied to each child of its root node (a leaf has none): the one place that knows which node holds which children.
+    let mapChildren (f: Scene -> Scene) (s: Scene) : Scene =
+        match s with
+        | Empty | Shape _ | Text _ | GlyphRun _ | Image _ -> s
+        | Group cs -> Group(List.map f cs)
+        | Stack(p, cs) -> Stack(p, List.map f cs)
+        | Clip(r, c) -> Clip(r, f c)
+        | Padding(i, c) -> Padding(i, f c)
+        | Transform(m, c) -> Transform(m, f c)
+        | Opacity(a, c) -> Opacity(a, f c)
+        | Reactive(h, c) -> Reactive(h, f c)
+        | Semantic(i, c) -> Semantic(i, f c)
+        | Cursor(k, c) -> Cursor(k, f c)
+        | Animated(t, c) -> Animated(t, f c)
+        | Blur(x, c) -> Blur(x, f c)
+        | ColorFilter(m, c) -> ColorFilter(m, f c)
+        | BlendMode(b, c) -> BlendMode(b, f c)
+        | Mask(m, c) -> Mask(f m, f c)
+
+    /// A picture of a scene: the same drawing without reactions, with no handler, no cursor and nothing for assistive technology.  What follows the pointer in a drag (a widget that is
+    /// being placed) is one: it must not take the pointer, show a cursor of its own or announce itself.
+    let rec inert (s: Scene) : Scene =
+        match s with
+        | Reactive(_, c) | Cursor(_, c) | Semantic(_, c) -> inert c
+        | other -> mapChildren inert other
+
     let onClick handler s       = Reactive((fun evt -> match evt with PointerDown _ -> handler(); true | _ -> false), s)
     let onHover enter leave s   = Reactive((fun evt -> match evt with PointerEnter _ -> enter(); true | PointerLeave _ -> leave(); true | _ -> false), s)

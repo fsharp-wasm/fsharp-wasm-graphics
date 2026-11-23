@@ -214,6 +214,15 @@ let hitTests () =
         && (cursorAt 500.0f 500.0f = CursorKind.Grabbing)
         && (dc.Handle(withCursors (), PointerUp(v 500.0f 500.0f, 0)) |> ignore; cursorAt 210.0f 10.0f = CursorKind.Grab))
 
+    // ── a picture of a scene: the drawing, and no reaction ──
+    let live = Group [ Scene.cursor CursorKind.Pointer (Scene.Reactive(underCursor, box 0.0f 0.0f 100.0f 100.0f blue))
+                       Scene.translate 10.0f 10.0f (Scene.semantic (Semantics.create "x" Role.Button "X") (Scene.Reactive(underCursor, box 0.0f 0.0f 20.0f 20.0f red))) ]
+    let still = Scene.inert live
+    check "a live scene has something under the pointer" ((Hit.pick live (v 15.0f 15.0f)).Length > 0)
+    check "a picture of it has nothing: no handler, no cursor" ((Hit.pick still (v 15.0f 15.0f)).Length = 0 && (let dp = Hit.Dispatcher() in dp.Handle(still, PointerMove(v 15.0f 15.0f)) |> ignore; dp.Cursor = CursorKind.Default))
+    check "and no semantics" ((SemanticTree.walk still).Length = 0 && (SemanticTree.walk live).Length = 1)
+    check "and it draws what the live one draws (the shapes are all still there)" ((SceneCombinators.collectLeaves still).Length = (SceneCombinators.collectLeaves live).Length && (SceneCombinators.collectLeaves live).Length = 2)
+
 // ── 5. timeline ────────────────────────────────────────────────────────────
 let timelineTests () =
     section "Timeline / easing"
