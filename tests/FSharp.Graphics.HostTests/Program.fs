@@ -193,6 +193,27 @@ let hitTests () =
     d2.Handle(frameOf 5, PointerMove(v 500.0f 500.0f)) |> ignore
     check "a key with the pointer outside every handler reaches nothing" (not (d2.Handle(frameOf 6, KeyDown "A")) && seen.Count = 0)
 
+    // ── cursors: a region of its own, taking no event; the innermost wins; a hand that grabs has closed while it is pressed ──
+    let cursorHits = ResizeArray<string>()
+    let underCursor (e: InputEvent) = (match e with PointerDown _ -> cursorHits.Add "under:down" | _ -> ()); true
+    let withCursors () =
+        Group [ Scene.cursor CursorKind.Pointer (Scene.Reactive(underCursor, box 0.0f 0.0f 100.0f 100.0f blue))
+                Scene.cursor CursorKind.Text (Scene.cursor CursorKind.Move (box 120.0f 0.0f 50.0f 50.0f red))
+                Scene.cursor CursorKind.Grab (box 200.0f 0.0f 50.0f 50.0f green) ]
+    let dc = Hit.Dispatcher()
+    let cursorAt (x: float32) (y: float32) = dc.Handle(withCursors (), PointerMove(v x y)) |> ignore; dc.Cursor
+    check "outside every cursor the pointer shows the default one" (cursorAt 500.0f 500.0f = CursorKind.Default)
+    check "over a cursor the pointer shows it" (cursorAt 10.0f 10.0f = CursorKind.Pointer)
+    check "of two cursors the innermost wins" (cursorAt 130.0f 10.0f = CursorKind.Move)
+    check "leaving it, the pointer shows the default one again" (cursorAt 110.0f 60.0f = CursorKind.Default)
+    check "a cursor takes no event: the handler under it still gets the press" (cursorAt 10.0f 10.0f = CursorKind.Pointer && (dc.Handle(withCursors (), PointerDown(v 10.0f 10.0f, 0)) |> ignore; cursorHits.Contains "under:down"))
+    dc.Handle(withCursors (), PointerUp(v 10.0f 10.0f, 0)) |> ignore
+    check "a hand that can grab closes on what is pressed, and opens when it is released" (
+        cursorAt 210.0f 10.0f = CursorKind.Grab
+        && (dc.Handle(withCursors (), PointerDown(v 210.0f 10.0f, 0)) |> ignore; dc.Cursor = CursorKind.Grabbing)
+        && (cursorAt 500.0f 500.0f = CursorKind.Grabbing)
+        && (dc.Handle(withCursors (), PointerUp(v 500.0f 500.0f, 0)) |> ignore; cursorAt 210.0f 10.0f = CursorKind.Grab))
+
 // ── 5. timeline ────────────────────────────────────────────────────────────
 let timelineTests () =
     section "Timeline / easing"

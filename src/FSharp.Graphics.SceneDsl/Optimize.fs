@@ -31,6 +31,7 @@ module Optimize =
         | Padding(i, c)     -> Padding(i, scene c)
         | Reactive(h, c)    -> Reactive(h, scene c)
         | Semantic(i, c)    -> Semantic(i, scene c)
+        | Cursor(k, c)      -> Cursor(k, scene c)
         | Animated(t, c)    -> Animated(t, scene c)
         | Blur(sg, c)       -> Blur(sg, scene c)
         | ColorFilter(m, c) -> ColorFilter(m, scene c)

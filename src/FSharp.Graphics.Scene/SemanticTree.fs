@@ -43,7 +43,7 @@ module SemanticTree =
                 let placed = match clip with ValueSome k -> Rect.intersect k own | ValueNone -> own
                 raws.Add { RInfo = info; RParent = parent; RBounds = placed; RVisible = hasArea placed }
                 go c world clip (raws.Count - 1)
-            | Padding(_, c) | Opacity(_, c) | Reactive(_, c) | Animated(_, c) | Blur(_, c)
+            | Padding(_, c) | Opacity(_, c) | Reactive(_, c) | Cursor(_, c) | Animated(_, c) | Blur(_, c)
             | ColorFilter(_, c) | BlendMode(_, c) | Mask(_, c) -> go c world clip parent
         go resolved Mat3x2.identity ValueNone -1
 
@@ -76,7 +76,7 @@ module SemanticTree =
             | Semantic(info, c) ->
                 raws.Add { RInfo = info; RParent = parent; RBounds = Rect.zero; RVisible = true }
                 go c (raws.Count - 1)
-            | Padding(_, c) | Clip(_, c) | Transform(_, c) | Opacity(_, c) | Reactive(_, c) | Animated(_, c)
+            | Padding(_, c) | Clip(_, c) | Transform(_, c) | Opacity(_, c) | Reactive(_, c) | Cursor(_, c) | Animated(_, c)
             | Blur(_, c) | ColorFilter(_, c) | BlendMode(_, c) | Mask(_, c) -> go c parent
         go scene -1
         let n = raws.Count

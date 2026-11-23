@@ -105,7 +105,7 @@ module Button =
             ]
         let act (a: SemanticAction) = match a with SemanticAction.Activate -> p.OnClick () | _ -> ()
         let described = Ui.semantic ui id Role.Button p.Text (fun s -> { s with Disabled = p.Disabled }) act
-        if p.Disabled then described (Opacity(0.45f, body)) else described (Ui.interactive ui id p.OnClick body)
+        if p.Disabled then described (Cursor(CursorKind.NotAllowed, Opacity(0.45f, body))) else described (Ui.interactive ui id p.OnClick body)
 
 module CheckBox =
     /// A box and its label, one target of at least 24 px (WCAG 2.5.8); the label is the accessible name.
@@ -234,7 +234,7 @@ module Slider =
                         ui.Send(ui.Lift UiMsg.Release)
                         true
                     | _ -> false),
-                body)
+                Cursor(CursorKind.Grab, body))
         Ui.semantic ui id Role.Slider name
             (fun s -> { s with Min = p.Min; Max = p.Max; Now = p.Value; Value = sprintf "%d%%" (int (t * 100.0f)) }) act reactive
 
@@ -272,7 +272,7 @@ module TextField =
         let clipped = Clip(Rect.create 0.0f 0.0f p.Width h, Group [ label; blinking ])
         let act (a: SemanticAction) = match a with SemanticAction.SetText t -> onChange t | _ -> ()
         Ui.semantic ui id Role.TextBox name (fun s -> { s with Value = p.Value; Description = p.Placeholder }) act
-            (Ui.interactive ui id ignore (Group [ box; clipped ]))
+            (Ui.interactive ui id ignore (Cursor(CursorKind.Text, Group [ box; clipped ])))
 
     /// The text field named after its placeholder; prefer `viewNamed`.
     let view (ui: Ui<'m>) (id: string) (p: Props) : Scene = viewNamed ui id (if p.Placeholder = "" then id else p.Placeholder) ignore p

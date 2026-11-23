@@ -428,6 +428,7 @@ let rec private renderSceneImpl (fb: Framebuffer) (scene: Scene) (clip: Rect vop
         renderSceneImpl offscreen child clip (ref !textY)
         fb.BlendFrom(offscreen, alpha)
     | Reactive(_, child) -> renderSceneImpl fb child clip textY
+    | Cursor(_, child) -> renderSceneImpl fb child clip textY
     | Animated(_, child) -> renderSceneImpl fb child clip textY
     | Blur(sigma, child) ->
         let offscreen = Framebuffer(fb.Width, fb.Height)

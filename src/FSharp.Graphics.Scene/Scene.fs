@@ -139,6 +139,8 @@ type Scene =
     | Reactive  of handler: (InputEvent -> bool) * child: Scene
     /// Accessibility: describes `child` for assistive technology.  Transparent for layout, drawing and hit testing.
     | Semantic  of Semantics * child: Scene
+    /// The pointer over `child` shows this cursor (the innermost one wins).  Transparent for layout, drawing and the accessibility tree; hit testing takes it as a region of its own.
+    | Cursor    of CursorKind * child: Scene
 
     // Animation
     | Animated  of Transition * child: Scene
@@ -162,6 +164,7 @@ module Scene =
     let animated t s            = Animated(t, s)
     let reactive h s            = Reactive(h, s)
     let semantic info s         = Semantic(info, s)
+    let cursor kind s           = Cursor(kind, s)
     let blur sigma s            = Blur(sigma, s)
     let colorFilter m s         = ColorFilter(m, s)
     let blendMode b s           = BlendMode(b, s)

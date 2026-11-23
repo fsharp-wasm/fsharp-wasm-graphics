@@ -14,7 +14,7 @@ module SceneCombinators =
             children |> List.collect collectLeaves
         | Padding(_, child) | Clip(_, child)
         | Transform(_, child) | Opacity(_, child)
-        | Reactive(_, child) | Semantic(_, child) | Animated(_, child)
+        | Reactive(_, child) | Semantic(_, child) | Cursor(_, child) | Animated(_, child)
         | Blur(_, child) | ColorFilter(_, child)
         | BlendMode(_, child) ->
             collectLeaves child
@@ -30,7 +30,7 @@ module SceneCombinators =
             1 + (children |> List.sumBy countNodes)
         | Padding(_, child) | Clip(_, child)
         | Transform(_, child) | Opacity(_, child)
-        | Reactive(_, child) | Semantic(_, child) | Animated(_, child)
+        | Reactive(_, child) | Semantic(_, child) | Cursor(_, child) | Animated(_, child)
         | Blur(_, child) | ColorFilter(_, child)
         | BlendMode(_, child) ->
             1 + countNodes child
@@ -64,7 +64,7 @@ module SceneCombinators =
         | Group children | Stack(_, children) -> children |> List.fold (fun acc c -> earliest acc (animationDelay timeMs c)) ValueNone
         | Padding(_, child) | Clip(_, child)
         | Transform(_, child) | Opacity(_, child)
-        | Reactive(_, child) | Semantic(_, child)
+        | Reactive(_, child) | Semantic(_, child) | Cursor(_, child)
         | Blur(_, child) | ColorFilter(_, child)
         | BlendMode(_, child) -> animationDelay timeMs child
         | Mask(mask, child) -> earliest (animationDelay timeMs mask) (animationDelay timeMs child)

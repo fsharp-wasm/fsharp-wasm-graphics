@@ -5,6 +5,23 @@ open FSharp.Graphics.Core
 open FSharp.Graphics.Primitives
 open FSharp.Graphics.Scene
 
+/// The place of a cursor in the list `runtime/gfx.js` knows (the order of `CursorKind`).
+module internal Cursors =
+    let index (k: CursorKind) : int =
+        match k with
+        | CursorKind.Default -> 0
+        | CursorKind.Pointer -> 1
+        | CursorKind.Text -> 2
+        | CursorKind.Move -> 3
+        | CursorKind.ResizeNS -> 4
+        | CursorKind.ResizeEW -> 5
+        | CursorKind.ResizeNWSE -> 6
+        | CursorKind.ResizeNESW -> 7
+        | CursorKind.Crosshair -> 8
+        | CursorKind.NotAllowed -> 9
+        | CursorKind.Grab -> 10
+        | CursorKind.Grabbing -> 11
+
 /// The frame plumbing of a module that draws onto one canvas: the size, the input, and build -> resolve -> emit -> draw.
 /// All mutable state of the page lives in this one object (a module-level `let mutable` is a wasm global; this keeps it
 /// together).  A frame is built and drawn only when something changed (a resize, an event a handler took, `Invalidate`, which a host that owns
@@ -18,6 +35,8 @@ type CanvasHost(text: ITextEngine) =
     let mutable needFull = true
     /// The page asked for every frame to be drawn whole (`?fullframes`), which the tests use to compare the two ways.
     let mutable fullFrames = false
+    /// The cursor the canvas shows now: `Gfx.cursor` is called when the pointer's cursor (`Hit.Dispatcher.Cursor`) is another one.
+    let mutable cursor = CursorKind.Default
     let mutable resolved = Scene.Empty
     let mutable width = 1024.0f
     let mutable height = 768.0f
@@ -75,6 +94,10 @@ type CanvasHost(text: ITextEngine) =
         let discrete = (match evt with KeyDown _ | KeyUp _ | PointerDown _ | PointerUp _ -> true | _ -> false)
         if dirty && discrete then rebuild (started + float elapsed)
         let handled = dispatcher.Handle(resolved, evt)
+        let shown = dispatcher.Cursor
+        if shown <> cursor then
+            cursor <- shown
+            Gfx.cursor (Cursors.index shown)
         if handled then dirty <- true
         handled
 

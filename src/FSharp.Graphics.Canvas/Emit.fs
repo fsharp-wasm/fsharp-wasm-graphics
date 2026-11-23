@@ -25,7 +25,7 @@ module Emit =
             out.Add(PushClip region)
             emit out child
             out.Add PopClip
-        | Scene.Padding(_, child) | Scene.Reactive(_, child) | Scene.Semantic(_, child) | Scene.Animated(_, child) | Scene.Mask(_, child) -> emit out child
+        | Scene.Padding(_, child) | Scene.Reactive(_, child) | Scene.Semantic(_, child) | Scene.Cursor(_, child) | Scene.Animated(_, child) | Scene.Mask(_, child) -> emit out child
         | Scene.Transform(m, child) ->
             out.Add(PushTransform m)
             emit out child

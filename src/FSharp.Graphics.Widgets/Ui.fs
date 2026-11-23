@@ -108,7 +108,7 @@ module Ui =
 
     /// Standard pointer behaviour: hover / press / focus bookkeeping + a click callback.
     let interactive (ui: Ui<'m>) (id: string) (onClick: unit -> unit) (content: Scene) : Scene =
-        Reactive(
+        Cursor(CursorKind.Pointer, Reactive(
             (fun e ->
                 match e with
                 | PointerEnter _ -> emit ui (UiMsg.Hover id); true
@@ -120,7 +120,7 @@ module Ui =
                     if Rect.contains p (measure ui content) then onClick ()
                     true
                 | _ -> false),
-            content)
+            content))
 
     /// The toolkit's name of a key: a browser says `ArrowLeft` and `" "`, a desktop host (Silk.NET) `Left` and `Space`.
     let keyName (key: string) : string =

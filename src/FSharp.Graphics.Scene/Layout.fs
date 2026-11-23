@@ -76,7 +76,7 @@ module LayoutEngine =
             let clippedC = BoxConstraints.tight (Scalar.min' constraints.MaxWidth region.W) (Scalar.min' constraints.MaxHeight region.H)
             measure clippedC child
 
-        | Transform(_, child) | Opacity(_, child) | Reactive(_, child) | Semantic(_, child)
+        | Transform(_, child) | Opacity(_, child) | Reactive(_, child) | Semantic(_, child) | Cursor(_, child)
         | Animated(_, child) | Blur(_, child) | ColorFilter(_, child)
         | BlendMode(_, child) ->
             measure constraints child
@@ -139,7 +139,7 @@ module LayoutEngine =
             let clipped = Rect.intersect bounds region
             layout clipped child
 
-        | Transform(_, child) | Opacity(_, child) | Reactive(_, child) | Semantic(_, child)
+        | Transform(_, child) | Opacity(_, child) | Reactive(_, child) | Semantic(_, child) | Cursor(_, child)
         | Animated(_, child) | Blur(_, child) | ColorFilter(_, child)
         | BlendMode(_, child) ->
             [(scene, bounds)]

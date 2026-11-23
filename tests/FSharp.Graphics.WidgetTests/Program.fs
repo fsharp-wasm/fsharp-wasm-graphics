@@ -105,6 +105,25 @@ let semanticsTests () =
         ((nodes (Label.view ui Label.Heading "Inspector")).[0].Role = Role.Heading 2 && (nodes (Label.view ui Label.Body "Hello")).[0].Role = Role.StaticText)
     check "progress: role, name and value" (let p = (nodes (ProgressBar.viewNamed ui "Upload" 200.0f 0.25f)).[0] in p.Role = Role.ProgressBar && p.Name = "Upload" && p.Value = "25%")
 
+/// What the pointer shows over a widget, at the middle of it.
+let cursorOver (scene: Scene) : CursorKind =
+    let r = resolved scene
+    let b = match Resolve.bounds r with Some b -> b | None -> Rect.zero
+    let d = Hit.Dispatcher()
+    d.Handle(r, PointerMove(Vec2.create (b.X + b.W * 0.5f) (b.Y + b.H * 0.5f))) |> ignore
+    d.Cursor
+
+let cursorTests () =
+    section "The pointer over the widgets"
+    reset ()
+    let ui = mkUi ()
+    check "a button shows the pointing hand" (cursorOver (Button.view ui "b" (Button.make "Save" ignore)) = CursorKind.Pointer)
+    check "a button that is off shows that it is" (cursorOver (Button.view ui "d" { Button.make "Off" ignore with Disabled = true }) = CursorKind.NotAllowed)
+    check "a check box and a toggle show the pointing hand" (cursorOver (CheckBox.view ui "c" "Remember me" false ignore) = CursorKind.Pointer && cursorOver (Toggle.view ui "t" "On" false ignore) = CursorKind.Pointer)
+    check "a text field shows the text cursor" (cursorOver (TextField.viewNamed ui "f" "Name" ignore { Value = "Ada"; Placeholder = ""; Width = 200.0f }) = CursorKind.Text)
+    check "a slider shows the hand that grabs" (cursorOver (Slider.viewNamed ui "s" "Volume" { Min = 0.0f; Max = 1.0f; Value = 0.5f; Width = 200.0f; OnChange = ignore }) = CursorKind.Grab)
+    check "a label shows nothing in particular" (cursorOver (Label.view ui Label.Body "Hello") = CursorKind.Default)
+
 let placementTests () =
     section "Placement and size of the targets"
     reset ()
@@ -248,6 +267,7 @@ let main _ =
     contrastTests ()
     semanticsTests ()
     placementTests ()
+    cursorTests ()
     keyboardTests ()
     scrollTests ()
     clockTests ()

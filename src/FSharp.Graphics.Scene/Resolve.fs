@@ -32,7 +32,7 @@ module Resolve =
                 Rect.create (b.X - i.Left) (b.Y - i.Top) (b.W + i.Left + i.Right) (b.H + i.Top + i.Bottom))
         | Scene.Clip(r, c) -> bounds c |> Option.map (Rect.intersect r)
         | Scene.Transform(m, c) -> bounds c |> Option.map (Mat3x2.transformRect m)
-        | Scene.Opacity(_, c) | Reactive(_, c) | Semantic(_, c) | Animated(_, c) | Blur(_, c)
+        | Scene.Opacity(_, c) | Reactive(_, c) | Semantic(_, c) | Cursor(_, c) | Animated(_, c) | Blur(_, c)
         | Scene.ColorFilter(_, c) | BlendMode(_, c) | Mask(_, c) -> bounds c
 
     let private placeAt (x: float32) (y: float32) (b: Rect) (c: Scene) : Scene =
@@ -61,6 +61,7 @@ module Resolve =
         | Opacity(a, c)     -> Opacity(a, go c)
         | Reactive(h, c)    -> Reactive(h, go c)
         | Semantic(i, c)    -> Semantic(i, go c)
+        | Cursor(k, c)      -> Cursor(k, go c)
         | Animated(t, c)    -> Animated(t, go c)
         | Blur(sg, c)       -> Blur(sg, go c)
         | ColorFilter(m, c) -> ColorFilter(m, go c)

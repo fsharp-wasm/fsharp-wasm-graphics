@@ -13,7 +13,7 @@ open FSharp.Graphics.Primitives
 module Hit =
 
     [<Struct>]
-    type Target = { Id: int; Handler: InputEvent -> bool; ToLocal: Mat3x2 }
+    type Target = { Id: int; Handler: InputEvent -> bool; ToLocal: Mat3x2; Cursor: CursorKind voption }
 
     let private contains (p: Vec2) (r: Rect) = Rect.contains p r
 
@@ -48,7 +48,13 @@ module Hit =
         | Reactive(h, c) ->
             let id = path * 31 + 7
             let hit = collect c p toLocal id acc
-            if hit then acc.Add { Id = id; Handler = h; ToLocal = toLocal }
+            if hit then acc.Add { Id = id; Handler = h; ToLocal = toLocal; Cursor = ValueNone }
+            hit
+        // a cursor is a region of its own that takes no event: the pointer over it shows the cursor (innermost first, like a handler)
+        | Cursor(k, c) ->
+            let id = path * 31 + 11
+            let hit = collect c p toLocal id acc
+            if hit then acc.Add { Id = id; Handler = (fun _ -> false); ToLocal = toLocal; Cursor = ValueSome k }
             hit
         | Padding(_, c) | Opacity(_, c) | Semantic(_, c) | Animated(_, c) | Blur(_, c)
         | ColorFilter(_, c) | BlendMode(_, c) | Mask(_, c) -> child 0 c
@@ -83,6 +89,17 @@ module Hit =
 
         /// Ids of the targets currently under the pointer.
         member _.Hover = hover |> Array.map (fun t -> t.Id)
+
+        /// The cursor the pointer shows: that of the innermost `Cursor` it is over.  While a button is pressed it is the cursor of what was pressed, and a hand that can grab
+        /// (`Grab`) has closed on it (`Grabbing`): the one place that says so, for every widget and every drag.
+        member _.Cursor : CursorKind =
+            let innermost (ts: Target[]) = ts |> Array.tryPick (fun t -> match t.Cursor with ValueSome k -> Some k | ValueNone -> None)
+            if pressed.Length > 0 then
+                match innermost pressed with
+                | Some CursorKind.Grab -> CursorKind.Grabbing
+                | Some k -> k
+                | None -> CursorKind.Default
+            else defaultArg (innermost hover) CursorKind.Default
 
         /// Route one event against the current resolved scene. True if a handler consumed it.
         member _.Handle(scene: Scene, evt: InputEvent) : bool =
