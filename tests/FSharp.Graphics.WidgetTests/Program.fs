@@ -400,7 +400,11 @@ let gridTests () =
     d.Handle(scene, Scroll(at 0.0f 3.0f)) |> ignore
     check "grid: the wheel up at the top stays at the top" (shown.Value.OffsetY = 0.0f)
     d.Handle(scene, Scroll(at 0.0f -3.0f)) |> ignore
-    check "grid: the wheel down scrolls the table up" (shown.Value.OffsetY = 108.0f)
+    check "grid: the wheel down (negative Y in notches) scrolls the table down, 36 px a notch" (shown.Value.OffsetY = 108.0f)
+    d.Handle(scene, Scroll(at 1.0f 0.0f)) |> ignore
+    check "grid: the wheel to the right scrolls toward the last column" (shown.Value.OffsetX = 36.0f)
+    d.Handle(scene, Scroll(at 0.0f -1.0f)) |> ignore
+    check "grid: a notch down is 36 px" (shown.Value.OffsetY = 36.0f)
     // an offset far down asks for rows far down
     asked.Value <- 0
     let far = Grid.view (mkUi ()) "grid" "Ledger" (props { Grid.start with OffsetY = 500.0f * 28.0f })

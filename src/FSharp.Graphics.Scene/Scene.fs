@@ -13,6 +13,7 @@ type InputEvent =
     | PointerLeave of position: Vec2
     | KeyDown      of key: string
     | KeyUp        of key: string
+    /// The wheel in notches (one click of a mouse wheel is 1.0): positive Y is up (away from the user), positive X is right.  A host that gets pixels converts them.
     | Scroll       of delta: Vec2
 
 /// Stack layout direction

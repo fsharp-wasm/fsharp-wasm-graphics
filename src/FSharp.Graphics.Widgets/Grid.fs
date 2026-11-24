@@ -254,10 +254,11 @@ module Grid =
         let handle (e: InputEvent) : bool =
             match e with
             | Scroll d ->
-                // Shift and the wheel scroll sideways, as in a spreadsheet
-                let dx = if ui.State.Shift then d.Y * 36.0f else d.X * 36.0f
-                let dy = if ui.State.Shift then 0.0f else d.Y * 36.0f
-                p.OnState(clamp f { s with OffsetX = s.OffsetX - dx; OffsetY = s.OffsetY - dy })
+                // the wheel in notches, positive Y up and positive X right (see `InputEvent`): up is toward the top of the table, right toward its last column; with Shift the wheel
+                // scrolls sideways, as in a spreadsheet
+                let dx = d.X * 36.0f - (if ui.State.Shift then d.Y * 36.0f else 0.0f)
+                let dy = if ui.State.Shift then 0.0f else -d.Y * 36.0f
+                p.OnState(clamp f { s with OffsetX = s.OffsetX + dx; OffsetY = s.OffsetY + dy })
                 true
             | PointerDown(pt, 0) ->
                 ui.Send(ui.Lift(UiMsg.Focus id))
