@@ -53,6 +53,10 @@ type Role =
     /// Text that is read as it is (a label, a paragraph).
     | StaticText
     | Button | CheckBox | Switch | Slider | TextBox | ComboBox | ListBox | Option | ProgressBar | Image
+    /// A strip of tabs, a tab of it (selected or not), and the panel that the selected one shows.
+    | TabList | Tab | TabPanel
+    /// A table of cells that is scrolled and walked by the keyboard (the cell that is selected is its value).
+    | Grid
 
 /// How a change of this element is announced without moving the focus.
 [<RequireQualifiedAccess>]

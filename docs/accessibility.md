@@ -72,6 +72,9 @@ Chromium's accessibility tree, Tab stops. Raw results: `tools/a11y/baseline-2026
   reports its role, name, state and range; each draws a focus ring (inside its box, so focusing never moves the layout); check
   boxes, toggles and sliders are at least 24 px high (2.5.8). `viewNamed` variants take the accessible name; the old `view`
   functions keep working and name the widget after its label, placeholder or id.
+* **Tabs and the grid**: `Role.TabList`, `Role.Tab` (only the selected tab is in the order of Tab; the arrows, Home and End move to the others), `Role.TabPanel` (`Tabs.panel`) and `Role.Grid`, whose value is the selected cell as a sentence
+  ("Account 4010, Q3: 1,204.00") and whose description lists its keys. The cells themselves are not in the semantic tree: a table of a million rows cannot be, and a screen reader is told the one cell that
+  is selected; the DOM overlay for tables is part of the accessibility layer that is not finished.
 * **Keyboard in the toolkit** (`Ui.root`): Tab and Shift+Tab over the focusable widgets in scene order (a disabled one is skipped),
   Enter and Space on button, check box, switch and combo box, the arrows, Home and End on a slider, a scroll region and a
   combo box, Escape on an open combo box; the browser's key names (`ArrowLeft`, `" "`) map to the toolkit's. An application

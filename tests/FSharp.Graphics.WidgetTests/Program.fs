@@ -262,6 +262,151 @@ let clockTests () =
          [ Transform(Mat3x2.identity, a); Clip(Rect.create 0.0f 0.0f 1.0f 1.0f, a); Opacity(0.5f, a); Mask(Empty, a); Mask(a, Empty); Group [ Empty; Padding(Insets.zero, a) ] ]
          |> List.forall (isAnimating 0.0f))
 
+// ── 7. tabs ────────────────────────────────────────────────────────────────
+let tabsTests () =
+    section "Tabs"
+    reset ()
+    let ui = mkUi ()
+    let chosen = ref ""
+    let closed = ref ""
+    let tab (id: string) (title: string) (closable: bool) : Tabs.Tab = { Id = id; Title = title; Closable = closable }
+    let tabs = [ tab "pivot" "Pivot" false; tab "e1" "Entries 4010" true; tab "e2" "Entries 6200" true ]
+    let props = { Tabs.make tabs "e1" (fun id -> chosen.Value <- id) with OnClose = fun id -> closed.Value <- id }
+    let strip = Tabs.viewNamed ui "tabs" "Open tables" props
+    let all = nodes strip
+    check "tabs: the strip is a tab list with its name" (all |> Array.exists (fun s -> s.Id = "tabs" && s.Role = Role.TabList && s.Name = "Open tables"))
+    let tabNodes = all |> Array.filter (fun s -> s.Role = Role.Tab)
+    check "tabs: every tab is a tab, named by its title" (tabNodes |> Array.map (fun s -> s.Name) = [| "Pivot"; "Entries 4010"; "Entries 6200" |])
+    check "tabs: exactly the selected one is selected, and only it is in the order of Tab" (tabNodes |> Array.map (fun s -> s.Selected, s.Focusable) = [| false, false; true, true; false, false |])
+    check "tabs: a tab that can be closed has a button named after it" (all |> Array.filter (fun s -> s.Role = Role.Button) |> Array.map (fun s -> s.Name) = [| "Close Entries 4010"; "Close Entries 6200" |])
+    (find "tabs/e2" strip).Act SemanticAction.Activate
+    check "tabs: Activate selects the tab" (chosen.Value = "e2")
+    (find "tabs/e1" strip).Act SemanticAction.Increment
+    check "tabs: the right arrow goes to the next" (chosen.Value = "e2")
+    (find "tabs/e1" strip).Act SemanticAction.Decrement
+    check "tabs: the left arrow goes to the previous" (chosen.Value = "pivot")
+    chosen.Value <- ""
+    (find "tabs/e1" strip).Act SemanticAction.First
+    check "tabs: Home goes to the first" (chosen.Value = "pivot")
+    (find "tabs/e1" strip).Act SemanticAction.Last
+    check "tabs: End goes to the last" (chosen.Value = "e2")
+    chosen.Value <- ""
+    (find "tabs/e1" (Tabs.viewNamed ui "tabs" "t" (Tabs.make [ tabs.[0]; tabs.[1] ] "e1" (fun id -> chosen.Value <- id)))).Act SemanticAction.Increment
+    check "tabs: the right arrow on the last tab stays where it is" (chosen.Value = "")
+    (find "tabs/close/e2" strip).Act SemanticAction.Activate
+    check "tabs: the close button closes its tab" (closed.Value = "e2")
+    let placed = Tabs.layout ui tabs
+    check "tabs: tabs follow each other without gaps" (placed |> List.pairwise |> List.forall (fun ((_, x, w), (_, x2, _)) -> abs (x + w - x2) < 0.01f))
+    check "tabs: a tab with a close button is wider than the same title without" (let (_, _, w) = placed.[1] in w > Ui.textWidth ui ui.Theme.FontSize "Entries 4010" + 2.0f * ui.Theme.PadX)
+    // a click on the second tab, and on the first one's neighbour
+    let d = Hit.Dispatcher()
+    let (_, x, w) = placed.[2]
+    let p = Vec2.create (x + 12.0f) 10.0f
+    d.Handle(strip, PointerMove p) |> ignore
+    d.Handle(strip, PointerDown(p, 0)) |> ignore
+    d.Handle(strip, PointerUp(p, 0)) |> ignore
+    check "tabs: a click on a tab selects it" (chosen.Value = "e2")
+    check "tabs: a tab is hit-tested by its own area (the title's area has its width)" (w > 40.0f)
+    // the arrows reach a focused tab through the toolkit's key handling
+    reset ()
+    chosen.Value <- ""
+    let ui2 = { mkUi () with State = { UiState.empty with Focus = Some "tabs/e1" } }
+    let stripFocused = Tabs.viewNamed ui2 "tabs" "Open tables" props
+    let delivered = ref ""
+    let root = Ui.root ui2 (fun k -> delivered.Value <- k) stripFocused
+    (match root with Reactive(h, _) -> h (KeyDown "ArrowRight") |> ignore | _ -> ())
+    check "tabs: the right arrow of a browser moves the focused tab to the next" (chosen.Value = "e2" && delivered.Value = "")
+
+// ── 8. the grid ────────────────────────────────────────────────────────────
+let gridFrame : Grid.Frame = { Rows = 1000; Cols = 12; Width = 240.0f + 4.0f * 112.0f; Height = 32.0f + 10.0f * 28.0f; Metrics = Grid.metrics }
+
+let gridTests () =
+    section "The grid"
+    let f = gridFrame
+    // 448 x 280 of body: 10 rows and 4 columns are in the window
+    let c1 = Grid.clamp f { Grid.start with OffsetX = -5.0f; OffsetY = 1.0e9f }
+    check "grid: offsets are held inside the table" (c1.OffsetX = 0.0f && c1.OffsetY = 1000.0f * 28.0f - 280.0f)
+    check "grid: a table smaller than its window does not scroll" (let g = { f with Rows = 3; Cols = 2 } in let c = Grid.clamp g { Grid.start with OffsetX = 50.0f; OffsetY = 50.0f } in c.OffsetX = 0.0f && c.OffsetY = 0.0f)
+    let r500 = Grid.reveal f 500 0 Grid.start
+    check "grid: a cell far down is scrolled to by the least that shows it (its bottom at the window's)" (r500.OffsetY = 501.0f * 28.0f - 280.0f)
+    check "grid: a cell that is in the window does not scroll" (let s = Grid.reveal f 3 1 Grid.start in s.OffsetX = 0.0f && s.OffsetY = 0.0f)
+    check "grid: a cell above the window is scrolled to by its top" ((Grid.reveal f 2 0 { Grid.start with OffsetY = 1000.0f }).OffsetY = 56.0f)
+    let h x y = Grid.hit f Grid.start x y
+    check "grid: the body, the headers and the corner are told apart" (h 300.0f 50.0f = Grid.InBody(0, 0) && h 20.0f 50.0f = Grid.InRowHeader 0 && h 300.0f 10.0f = Grid.InColHeader 0 && h 10.0f 10.0f = Grid.Corner)
+    check "grid: the cell under a point follows the scroll" (Grid.hit f { Grid.start with OffsetX = 112.0f; OffsetY = 56.0f } 245.0f 40.0f = Grid.InBody(2, 1))
+    check "grid: outside the window, and past the last column, is nothing" (h -1.0f 5.0f = Grid.Outside && h 800.0f 50.0f = Grid.Outside && Grid.hit { f with Cols = 2 } Grid.start 600.0f 50.0f = Grid.Outside)
+    let key name s = Grid.key f false name s
+    let sel r c = { Grid.start with Selected = Some(r, c) }
+    check "grid: a first arrow key selects the first cell" (match key "Down" Grid.start with Grid.Moved s -> s.Selected = Some(0, 0) | _ -> false)
+    check "grid: the arrows move the selection by one, and stay at the edges"
+        ((match key "Down" (sel 3 3) with Grid.Moved s -> s.Selected = Some(4, 3) | _ -> false)
+         && (match key "Up" (sel 0 3) with Grid.Moved s -> s.Selected = Some(0, 3) | _ -> false)
+         && (match key "Right" (sel 3 11) with Grid.Moved s -> s.Selected = Some(3, 11) | _ -> false)
+         && (match key "Left" (sel 3 0) with Grid.Moved s -> s.Selected = Some(3, 0) | _ -> false))
+    check "grid: a page is the window's height less a row" (match key "PageDown" (sel 3 0) with Grid.Moved s -> s.Selected = Some(12, 0) | _ -> false)
+    check "grid: Home and End go to the ends of the row" ((match key "Home" (sel 5 7) with Grid.Moved s -> s.Selected = Some(5, 0) | _ -> false) && (match key "End" (sel 5 7) with Grid.Moved s -> s.Selected = Some(5, 11) | _ -> false))
+    check "grid: moving the selection out of the window scrolls it into view" (match key "Down" (sel 9 0) with Grid.Moved s -> s.OffsetY = 11.0f * 28.0f - 280.0f | _ -> false)
+    check "grid: Enter opens the cell, Space folds the row, Shift and Space the column"
+        (key "Enter" (sel 4 2) = Grid.Open(4, 2) && key "Space" (sel 4 2) = Grid.ToggleRow 4 && Grid.key f true "Space" (sel 4 2) = Grid.ToggleCol 2)
+    check "grid: other keys, and any key on an empty table, are left alone" (key "x" (sel 1 1) = Grid.Ignored && Grid.key { f with Rows = 0 } false "Down" Grid.start = Grid.Ignored)
+
+    // the widget: only what is in the window is asked for
+    reset ()
+    let ui = mkUi ()
+    let asked = ref 0
+    let rowsAsked = ref 0
+    let log = ref ""
+    let shown = ref Grid.start
+    let props (st: Grid.State) : Grid.Props<UiMsg> =
+        { Frame = f; State = st; Corner = "Account / Period"
+          Row = fun r -> rowsAsked.Value <- rowsAsked.Value + 1; { Label = (if r % 10 = 0 then "Group " + string r else "Row " + string r); Level = (if r % 10 = 0 then 0 else 1); Group = (r % 10 = 0); Open = false }
+          Col = fun c -> { Label = "Col " + string c; Level = 0; Group = (c = 0); Open = true }
+          Cell = fun r c -> asked.Value <- asked.Value + 1; { Text = string (r * 100 + c); Muted = (c = 3) }
+          OnState = fun s -> shown.Value <- s
+          OnToggleRow = fun r -> log.Value <- "row " + string r
+          OnToggleCol = fun c -> log.Value <- "col " + string c
+          OnOpen = fun r c -> log.Value <- sprintf "open %d,%d" r c }
+    let scene = Grid.view ui "grid" "Ledger" (props (sel 4 2))
+    check "grid: exactly the cells of the window are asked for (10 rows of 4 columns), and the selected one for its description, whatever the size of the table" (asked.Value = 10 * 4 + 1)
+    check "grid: the rows of the window are asked for once, and the selected one for the description" (rowsAsked.Value = 10 + 1)
+    let g = find "grid" scene
+    check "grid: a region of its own, named, with the selected cell as its value" (g.Role = Role.Grid && g.Name = "Ledger" && g.Value = "Row 4, Col 2: 402")
+    check "grid: the keys are in its description" (g.Description.Contains "Arrow keys")
+    g.Act SemanticAction.Activate
+    check "grid: Activate opens the selected cell" (log.Value = "open 4,2")
+    // a pointer on the grid
+    let d = Hit.Dispatcher()
+    let at (x: float32) (y: float32) = Vec2.create x y
+    let click (x: float32) (y: float32) =
+        d.Handle(scene, PointerMove(at x y)) |> ignore
+        d.Handle(scene, PointerDown(at x y, 0)) |> ignore
+        d.Handle(scene, PointerUp(at x y, 0)) |> ignore
+    click 300.0f 50.0f
+    check "grid: a click on a cell selects it" (shown.Value.Selected = Some(0, 0))
+    click 300.0f 50.0f
+    reset ()
+    let scene2 = Grid.view (mkUi ()) "grid" "Ledger" (props { Grid.start with Selected = Some(0, 0) })
+    d.Handle(scene2, PointerMove(at 300.0f 50.0f)) |> ignore
+    d.Handle(scene2, PointerDown(at 300.0f 50.0f, 0)) |> ignore
+    check "grid: a click on the cell that is selected opens it" (log.Value = "open 0,0")
+    click 20.0f 50.0f
+    check "grid: a click on a row that is a total folds or opens it (row 0 is one)" (log.Value = "row 0")
+    click 20.0f 80.0f
+    check "grid: a click on a row that is not a total selects it in the column that is selected" (shown.Value.Selected = Some(1, 2))
+    click 300.0f 10.0f
+    check "grid: a click on the header of a column that is a total folds or opens it (column 0 is one)" (log.Value = "col 0")
+    // the wheel
+    d.Handle(scene, PointerMove(at 300.0f 100.0f)) |> ignore
+    d.Handle(scene, Scroll(at 0.0f 3.0f)) |> ignore
+    check "grid: the wheel up at the top stays at the top" (shown.Value.OffsetY = 0.0f)
+    d.Handle(scene, Scroll(at 0.0f -3.0f)) |> ignore
+    check "grid: the wheel down scrolls the table up" (shown.Value.OffsetY = 108.0f)
+    // an offset far down asks for rows far down
+    asked.Value <- 0
+    let far = Grid.view (mkUi ()) "grid" "Ledger" (props { Grid.start with OffsetY = 500.0f * 28.0f })
+    check "grid: scrolled far down it still asks for a window's worth" (asked.Value = 10 * 4)
+    check "grid: and says what it shows" ((find "grid" (Grid.view (mkUi ()) "grid" "Ledger" (props { Grid.start with OffsetY = 500.0f * 28.0f; Selected = Some(502, 1) }))).Value = "Row 502, Col 1: 50201")
+
 [<EntryPoint>]
 let main _ =
     contrastTests ()
@@ -271,6 +416,8 @@ let main _ =
     keyboardTests ()
     scrollTests ()
     clockTests ()
+    tabsTests ()
+    gridTests ()
     printfn ""
     if failures.Count = 0 then printfn "%d passed, 0 failed" passed; 0
     else printfn "%d passed, %d failed" passed failures.Count; 1

@@ -155,13 +155,13 @@ module Ui =
             emit ui (UiMsg.Focus next.Id)
             true
         | "Enter" | "Space" ->
-            if isRole Role.Button || isRole Role.CheckBox || isRole Role.Switch || isRole Role.Option || isRole Role.ComboBox
+            if isRole Role.Button || isRole Role.CheckBox || isRole Role.Switch || isRole Role.Option || isRole Role.ComboBox || isRole Role.Tab
             then act SemanticAction.Activate
             else false
-        | "Left" | "Down" -> if isRole Role.Slider || isRole Role.ComboBox || isRole Role.Region then act SemanticAction.Decrement else false
-        | "Right" | "Up" -> if isRole Role.Slider || isRole Role.ComboBox || isRole Role.Region then act SemanticAction.Increment else false
-        | "Home" -> if isRole Role.Slider || isRole Role.Region then act SemanticAction.First else false
-        | "End" -> if isRole Role.Slider || isRole Role.Region then act SemanticAction.Last else false
+        | "Left" | "Down" -> if isRole Role.Slider || isRole Role.ComboBox || isRole Role.Region || isRole Role.Tab then act SemanticAction.Decrement else false
+        | "Right" | "Up" -> if isRole Role.Slider || isRole Role.ComboBox || isRole Role.Region || isRole Role.Tab then act SemanticAction.Increment else false
+        | "Home" -> if isRole Role.Slider || isRole Role.Region || isRole Role.Tab then act SemanticAction.First else false
+        | "End" -> if isRole Role.Slider || isRole Role.Region || isRole Role.Tab then act SemanticAction.Last else false
         | "Escape" ->
             match focused with
             | Some s when s.Expanded = ValueSome true -> act SemanticAction.Dismiss
