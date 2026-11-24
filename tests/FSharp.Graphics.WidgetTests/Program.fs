@@ -361,7 +361,7 @@ let gridTests () =
         { Frame = f; State = st; Corner = "Account / Period"
           Row = fun r -> rowsAsked.Value <- rowsAsked.Value + 1; { Label = (if r % 10 = 0 then "Group " + string r else "Row " + string r); Level = (if r % 10 = 0 then 0 else 1); Group = (r % 10 = 0); Open = false }
           Col = fun c -> { Label = "Col " + string c; Level = 0; Group = (c = 0); Open = true }
-          Cell = fun r c -> asked.Value <- asked.Value + 1; { Text = string (r * 100 + c); Muted = (c = 3) }
+          Cell = fun r c -> asked.Value <- asked.Value + 1; { Text = string (r * 100 + c); Muted = (c = 3); Left = false }
           OnState = fun s -> shown.Value <- s
           OnToggleRow = fun r -> log.Value <- "row " + string r
           OnToggleCol = fun c -> log.Value <- "col " + string c

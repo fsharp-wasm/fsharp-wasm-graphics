@@ -23,8 +23,8 @@ module Grid =
           Group: bool
           Open: bool }
 
-    /// A cell: what it says, and whether it is dimmed (a zero in a ledger is quiet).
-    type Cell = { Text: string; Muted: bool }
+    /// A cell: what it says, whether it is dimmed (a zero in a ledger is quiet) and whether it is set at the left (text) rather than the right (numbers).
+    type Cell = { Text: string; Muted: bool; Left: bool }
 
     /// Sizes in pixels.  Rows and columns are of one size each, which is what lets any cell be found without looking at the others.
     type Metrics = { RowHeight: float32; HeaderHeight: float32; ColWidth: float32; HeaderWidth: float32 }
@@ -167,7 +167,7 @@ module Grid =
         let selCol = (match s.Selected with Some(_, c) -> c | None -> -1)
         let tint = Color.withAlpha 0.18f th.Accent
         let right (color: Color) : TextStyle = { Ui.textStyle ui fs color with Wrap = true; Align = TextAlign.Right }
-        let left (color: Color) : TextStyle = Ui.textStyle ui fs color
+        let left (color: Color) : TextStyle = { Ui.textStyle ui fs color with Wrap = true }
 
         let body =
             Group [
@@ -180,7 +180,7 @@ module Grid =
                     for j in 0 .. nc - 1 do
                         let cell = p.Cell (r0 + i) (c0 + j)
                         if cell.Text.Length > 0 then
-                            yield shift (colX j + 8.0f) (y + ty) (Clip(Rect.create 0.0f 0.0f (m.ColWidth - 16.0f) lineH, Text(cell.Text, right (if cell.Muted then th.TextMuted else th.Text))))
+                            yield shift (colX j + 8.0f) (y + ty) (Clip(Rect.create 0.0f 0.0f (m.ColWidth - 16.0f) lineH, Text(cell.Text, (if cell.Left then left else right) (if cell.Muted then th.TextMuted else th.Text))))
                 for j in 0 .. nc - 1 do
                     yield rectangle { bounds (colX j + m.ColWidth - 1.0f) 0.0f 1.0f bh; fill th.Border }
                 if selRow >= r0 && selRow <= r1 && selCol >= c0 && selCol <= c1 then
