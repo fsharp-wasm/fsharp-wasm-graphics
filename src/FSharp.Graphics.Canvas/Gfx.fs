@@ -95,3 +95,7 @@ module Gfx =
     /// The key of the key event being delivered.
     [<Import("pendingKey", "runtime/gfx.js")>]
     let pendingKey () : string = nativeOnly
+    /// A clock with fractions of a millisecond (`performance.now()`): for measuring what a message or a build costs.  Under .NET it is not available (the imports are
+    /// the browser's): a module that measures takes the clock as a parameter.
+    [<Import("now", "runtime/gfx.js")>]
+    let now () : float = nativeOnly
