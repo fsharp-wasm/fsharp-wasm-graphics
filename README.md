@@ -46,6 +46,15 @@ dotnet run --project tests/FSharp.Graphics.HostTests -c Release
 bash build/pack.sh            # → dist/nupkg/*.nupkg (the library projects; each also carries its sources for fsharp-wasm)
 ```
 
+## Contributing
+
+Welcome. [CONTRIBUTING](https://github.com/fsharp-wasm/.github/blob/develop/CONTRIBUTING.md) is the organisation's guide and [AGENTS.md](AGENTS.md) says how the platform is worked on (the compiler comes first: a fault found here
+is fixed in the compiler, not worked around here).
+
+- **Run the tests:** `dotnet run --project tests/FSharp.Math.Tests -c Release` and `dotnet run --project tests/FSharp.Graphics.HostTests -c Release`.
+- **A good first contribution:** A widget or a scene that draws wrongly, with the scene that shows it; golden pictures are in `golden/`. Issues labelled [`good first issue`](https://github.com/fsharp-wasm/fsharp-wasm-graphics/labels/good%20first%20issue) are the places to start.
+- **A change** goes to `develop` as a pull request, with a test that fails without it. Open an issue first for anything larger than a fix.
+
 ## License
 
 [Apache License 2.0](LICENSE); see [NOTICE](NOTICE) for the components that keep their own.
