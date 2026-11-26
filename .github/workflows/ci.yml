@@ -26,6 +26,9 @@ jobs:
       - name: Interact tests (where a drag lands)
         run: dotnet run --project tests/FSharp.Graphics.InteractTests/FSharp.Graphics.InteractTests.fsproj -c Release
 
+      - name: Icons tests (SVG path data to segments, every icon as a scene)
+        run: dotnet run --project tests/FSharp.Graphics.IconsTests/FSharp.Graphics.IconsTests.fsproj -c Release
+
       - name: Charts tests (the pyramid against a loop, the density grid against a count, the polygons)
         run: dotnet run --project tests/FSharp.Graphics.ChartsTests/FSharp.Graphics.ChartsTests.fsproj -c Release
 

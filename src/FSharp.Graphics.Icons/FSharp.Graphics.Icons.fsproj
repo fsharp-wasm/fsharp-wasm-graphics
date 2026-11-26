@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- FSharp.Graphics.Icons: the icons of FSharp.Wasm.Icons (typed shapes on a 24 x 24 grid, Lucide) drawn on a canvas.  SVG path data is read and flattened here
+       (`PathData`: a path as runs of straight segments, curves and arcs sampled), and an icon becomes a scene of round-ended strokes of one colour (`IconScene`): the
+       same picture that the SVG text and the DOM view of the library make, in the scene graph of the widgets.  The shapes are the library's, the strokes are this layer's:
+       no icon is written twice. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FSharp.Graphics.Icons</RootNamespace>
+    <AssemblyName>FSharp.Graphics.Icons</AssemblyName>
+    <Nullable>enable</Nullable>
+    <Optimize>true</Optimize>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="PathData.fs" />
+    <Compile Include="IconScene.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FSharp.Math/FSharp.Math.fsproj" />
+    <ProjectReference Include="../FSharp.Graphics.Core/FSharp.Graphics.Core.fsproj" />
+    <ProjectReference Include="../FSharp.Graphics.Primitives/FSharp.Graphics.Primitives.fsproj" />
+    <ProjectReference Include="../FSharp.Graphics.Scene/FSharp.Graphics.Scene.fsproj" />
+    <ProjectReference Include="$(FSharpWasmCoreRoot)/FSharp.Wasm.Icons/FSharp.Wasm.Icons.fsproj" />
+  </ItemGroup>
+</Project>
