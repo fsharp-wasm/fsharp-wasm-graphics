@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The chart demo: four charts of FSharp.Graphics.Charts on one <canvas>, drawn through runtime/gfx.js — a line of ten million samples, a stream, a density map of five million points and
+       two hundred thousand candles.  Compiled to WasmGC by the fsharp-wasm compiler; only this project's last file becomes the module's exports. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <RootNamespace>FSharp.Graphics.Browser.ChartDemo</RootNamespace>
+    <NuGetAudit>false</NuGetAudit>
+    <NoWarn>$(NoWarn);NU1900;NETSDK1188</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Data.fs" />
+    <Compile Include="ChartDemo.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FSharp.Graphics.Canvas/FSharp.Graphics.Canvas.fsproj" />
+    <ProjectReference Include="../../src/FSharp.Graphics.Charts/FSharp.Graphics.Charts.fsproj" />
+  </ItemGroup>
+</Project>

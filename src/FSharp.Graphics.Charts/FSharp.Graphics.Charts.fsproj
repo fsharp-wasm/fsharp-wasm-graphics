@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- FSharp.Graphics.Charts: charts drawn by the scene graph.  The data structures (Scale, Pyramid, Density) are plain arrays and numbers with no scene in them: a frame costs the pixels
+       of the chart and not the points of the data (a minimum and maximum pyramid answers "what is the range of these samples" in O(log n); a summed-area table answers "how many points
+       are in this rectangle" in four lookups).  Chart builds the scene (axes, lines, bands, bars, candles, a density map, the crosshair) from them. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FSharp.Graphics.Charts</RootNamespace>
+    <AssemblyName>FSharp.Graphics.Charts</AssemblyName>
+    <Nullable>enable</Nullable>
+    <Optimize>true</Optimize>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Scale.fs" />
+    <Compile Include="Pyramid.fs" />
+    <Compile Include="Density.fs" />
+    <Compile Include="Geometry.fs" />
+    <Compile Include="Chart.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FSharp.Math/FSharp.Math.fsproj" />
+    <ProjectReference Include="../FSharp.Graphics.Core/FSharp.Graphics.Core.fsproj" />
+    <ProjectReference Include="../FSharp.Graphics.Primitives/FSharp.Graphics.Primitives.fsproj" />
+    <ProjectReference Include="../FSharp.Graphics.Scene/FSharp.Graphics.Scene.fsproj" />
+  </ItemGroup>
+</Project>

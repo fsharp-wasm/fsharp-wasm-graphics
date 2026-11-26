@@ -4,6 +4,7 @@
     <Project Path="demo/FSharp.Graphics.DesktopRunner/FSharp.Graphics.DesktopRunner.fsproj" />
     <Project Path="demo/FSharp.Graphics.Scenes/FSharp.Graphics.Scenes.fsproj" />
     <Project Path="demo/FSharp.Graphics.Browser.Gallery/FSharp.Graphics.Browser.Gallery.fsproj" />
+    <Project Path="demo/FSharp.Graphics.Browser.Charts/FSharp.Graphics.Browser.Charts.fsproj" />
     <Project Path="demo/FSharp.Graphics.Shots/FSharp.Graphics.Shots.fsproj" />
   </Folder>
   <Folder Name="/lib/">
@@ -22,6 +23,7 @@
     <Project Path="src/FSharp.Graphics.Host/FSharp.Graphics.Host.fsproj" />
     <Project Path="src/FSharp.Graphics.Host.Skia/FSharp.Graphics.Host.Skia.fsproj" />
     <Project Path="src/FSharp.Graphics.Interact/FSharp.Graphics.Interact.fsproj" />
+    <Project Path="src/FSharp.Graphics.Charts/FSharp.Graphics.Charts.fsproj" />
     <Project Path="src/FSharp.Graphics.Wasm/FSharp.Graphics.Wasm.fsproj" />
     <Project Path="src/FSharp.Math/FSharp.Math.fsproj" />
   </Folder>
@@ -31,6 +33,7 @@
     <Project Path="tests/FSharp.Graphics.WidgetTests/FSharp.Graphics.WidgetTests.fsproj" />
     <Project Path="tests/FSharp.Math.Tests/FSharp.Math.Tests.fsproj" />
     <Project Path="tests/FSharp.Graphics.InteractTests/FSharp.Graphics.InteractTests.fsproj" />
+    <Project Path="tests/FSharp.Graphics.ChartsTests/FSharp.Graphics.ChartsTests.fsproj" />
     <Project Path="tests/FSharp.Graphics.CanvasTests/FSharp.Graphics.CanvasTests.fsproj" />
     <Project Path="tests/FSharp.Graphics.GoldenTests/FSharp.Graphics.GoldenTests.fsproj" />
     <Project Path="tests/FSharp.Graphics.WasmTests/FSharp.Graphics.WasmTests.fsproj" />

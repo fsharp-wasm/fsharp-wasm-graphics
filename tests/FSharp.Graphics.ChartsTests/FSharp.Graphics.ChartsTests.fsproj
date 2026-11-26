@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The tests of FSharp.Graphics.Charts.  Plain checks, no framework, so that the same file runs under .NET (`dotnet run`: the exit code is the number of failures) and compiles with
+       fsharp-wasm.  The pyramid is checked against a plain loop over the samples, the density grid against a count of the points, the polygons against their definition. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>FSharp.Graphics.ChartsTests</AssemblyName>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Tests.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FSharp.Graphics.Charts/FSharp.Graphics.Charts.fsproj" />
+  </ItemGroup>
+</Project>

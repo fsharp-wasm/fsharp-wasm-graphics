@@ -26,6 +26,7 @@ Model ──View──▶ Scene ──Resolve──▶ positioned Scene ──Em
 | `FSharp.Graphics.Tea` | the Elmish-style runtime and commands |
 | `FSharp.Graphics.Widgets` | buttons, fields, sliders, toggles, a strip of tabs, a grid for tables far larger than the screen (it draws what is in the window), theme |
 | `FSharp.Graphics.Interact` | where a drag lands: slots, the drop a pointer position means (before, after, into), the drag as a session, scrolling near an edge. Pure geometry on `FSharp.Math`: the canvas and the DOM share it |
+| `FSharp.Graphics.Charts` | charts of a size that a screen cannot show point by point: a minimum and maximum pyramid (the range of any run of samples in O(log n), appended to one sample at a time), a summed-area table for density maps, scales and ticks, and the scenes of lines, bands, candles, bars and heat maps, with a crosshair and a legend. A frame costs the pixels of the chart, not the points of the data ([docs/charts.md](docs/charts.md)) |
 | `FSharp.Graphics.Host` | fonts, the software rasterizer, a PNG encoder (all own code) |
 | `FSharp.Graphics.Host.Skia` | a Skia host (needs SkiaSharp; optional, not packed) |
 
