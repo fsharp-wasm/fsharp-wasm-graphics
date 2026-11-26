@@ -21,8 +21,11 @@ nothing written twice.
 1. **The value itself**: a tag with a quality (good, uncertain, bad), limits, and an alarm that has a life (raised, acknowledged, returned, cleared), a history that is kept small.
    Not a graphics matter: it is data and logic that a server, a test and a screen all need.  → `FSharp.Wasm.Telemetry` in fsharp-wasm-core (**written**, 173 tests under .NET and as WasmGC).
 2. **Instruments**: gauge (an arc with zones), bar and tank (a level with limits), sparkline (a trend with no axes), lamp (a state), KPI card (a number, its change and a sparkline), a
-   threshold band on a chart, an alarm list.  → `FSharp.Graphics.Instruments` in this repository, built on the scene (arcs are `Geometry.ribbon` through points, so there is no new
-   primitive to draw), the colour of a value comes from `Telemetry.Level` and `Quality` (a bad value is drawn hatched and grey, never as a number that looks right).
+   threshold band on a chart, an alarm list.  → `Instruments` in `FSharp.Graphics.Charts`, built on the scene (arcs are polygons, so there is no new primitive to draw).  **Written
+   2026-11-26: the gauge, the level, the lamp, the sparkline and the key figure** (`Instruments.gauge`, `level`, `lamp`, `sparkline`, `kpi`; 14 checks under .NET and as WebAssembly
+   GC).  The colour of a value is a `Tone` (normal, warning, alarm, fault) that the app takes from `Telemetry.Level` and the quality of the reading; a reading that is not a number
+   draws no needle and no arc, says a dash and says "not trusted", and every instrument says its state in words to assistive technology.  Still to come: the threshold band on a chart
+   and the alarm list.
 3. **Diagrams**: a process mimic (symbols of a pump, a valve, a tank, a pipe whose colour and flow follow the values) and node-link diagrams (a flow chart, an org chart, a network).  The
    layout of a graph is data (layers, positions, edge routes): → `FSharp.Graphics.Diagrams`, with the layout in a pure module so that it is tested with no scene.
 4. **A dashboard shell**: a grid of panels that the operator arranges (drag, resize), saved as data.  It builds on `Interact` (areas, drag sessions, drop zones) and on `Edit`; it does not
@@ -36,7 +39,7 @@ nothing written twice.
 ## Order
 
 1. `Telemetry` (done): the alarm, the historian.
-2. `Instruments`: gauge, tank, lamp, sparkline, KPI, the band of limits on a chart; a test per instrument on the scene it makes (no pixels), and one page that shows them all.
+2. `Instruments`: gauge, level, lamp, sparkline, key figure (**done**, each with a test on the scene it makes, no pixels); the band of limits on a chart and one page that shows them all (open).
 3. `Diagrams`: the layout first (tested as data), then the mimic symbols, then the live demo.
 4. The simulated plant and the alarm list, as the demo of 2 and 3 together.
 5. The dashboard shell with arranging and saving.

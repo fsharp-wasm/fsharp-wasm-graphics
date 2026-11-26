@@ -311,12 +311,62 @@ let private sceneTests () =
     | Semantic(sem, _) -> check "the chart is an image with a name and a description" (sem.Role = Role.Image && sem.Name = "Chart" && sem.Description = "A line")
     | _ -> check "the chart is described" false
 
+let private instrumentTests () =
+    let th = Theme.dark (FontId 0UL)
+    let isEmpty (s: Scene) = match s with Empty -> true | _ -> false
+    let rec shapes (s: Scene) : int =
+        match s with
+        | Shape _ -> 1
+        | Group cs -> cs |> List.sumBy shapes
+        | Semantic(_, c) | Transform(_, c) | Clip(_, c) -> shapes c
+        | _ -> 0
+    let semantics (s: Scene) = match s with Semantic(sem, _) -> Some sem | _ -> None
+
+    check "instruments: a fraction is where a value is in its range, and 0 for what is not a number or a range that is none"
+        (near (Instruments.fraction 0.0 100.0 50.0) 0.5 && Instruments.fraction 0.0 100.0 250.0 = 1.0 && Instruments.fraction 0.0 100.0 -5.0 = 0.0
+         && Instruments.fraction 0.0 100.0 nan = 0.0 && Instruments.fraction 5.0 5.0 5.0 = 0.0)
+    check "instruments: a value is shown with its unit, three digits at most, and a dash when it is not a number"
+        (Instruments.show "\u00B0C" 75.0 = "75.0 \u00B0C" && Instruments.show "bar" 123.4 = "123 bar" && Instruments.show "" 5.0 = "5.00" && Instruments.show "bar" nan = "\u2014" && Instruments.show "bar" infinity = "\u2014")
+    let ring = Instruments.arc 50.0f 50.0f 30.0f 40.0f 135.0f 405.0f
+    check "instruments: a ring segment is a polygon between its two radii" (ring.Length >= 8 && ring |> Array.forall (fun p -> let d = MathF.Sqrt((p.X - 50.0f) * (p.X - 50.0f) + (p.Y - 50.0f) * (p.Y - 50.0f)) in d > 29.99f && d < 40.01f))
+
+    let spec = { Min = 0.0; Max = 100.0; Value = 80.0; Zones = [ (0.0, 70.0, Normal); (70.0, 90.0, Warning); (90.0, 100.0, Alarm) ]; Label = "Temperature"; Unit = "\u00B0C"; Tone = Warning }
+    let g = Instruments.gauge th "t1" 200.0f spec
+    check "instruments: a gauge is a meter with its name, its range, its value and its state in words"
+        (match semantics g with
+         | Some s -> s.Role = Role.ProgressBar && s.Name = "Temperature" && s.Min = 0.0f && s.Max = 100.0f && s.Now = 80.0f && s.Value = "80.0 \u00B0C, warning"
+         | None -> false)
+    let bad = Instruments.gauge th "t1" 200.0f { spec with Value = nan; Tone = Normal }
+    check "instruments: a reading that is not a number draws no needle and no arc, says a dash and says it is not trusted"
+        (shapes bad < shapes g && (match semantics bad with Some s -> s.Value.Contains "\u2014" && s.Value.Contains "not trusted" | None -> false))
+    check "instruments: a range of no width, a value outside the range and a gauge of no size do not fail"
+        (shapes (Instruments.gauge th "t" 100.0f { spec with Min = 5.0; Max = 5.0 }) > 0 && shapes (Instruments.gauge th "t" 100.0f { spec with Value = 1.0e9 }) > 0 && (Instruments.gauge th "t" 0.0f spec |> shapes) > 0)
+
+    let tank = { Min = 0.0; Max = 10.0; Value = 7.5; Marks = [ (9.0, Alarm); (8.0, Warning); (2.0, Warning) ]; Label = "Tank 1"; Unit = "m"; Tone = Normal }
+    let t0 = Instruments.level th "l1" 60.0f 200.0f { tank with Marks = [] }
+    let t3 = Instruments.level th "l1" 60.0f 200.0f tank
+    check "instruments: a level has a line across it at each mark" (shapes t3 = shapes t0 + 3)
+    check "instruments: a level is a meter: its value is 7.50 m" (match semantics t3 with Some s -> s.Name = "Tank 1" && s.Value = "7.50 m" && s.Now = 7.5f | None -> false)
+
+    let off = Instruments.lamp th "p1" 12.0f Normal false "Pump 1"
+    let on = Instruments.lamp th "p1" 12.0f Alarm true "Pump 1"
+    check "instruments: a lamp says in words whether it is lit and in which tone"
+        (match semantics off, semantics on with Some a, Some b -> a.Description = "off" && b.Description = "on, alarm" && b.Name = "Pump 1" | _ -> false)
+    check "instruments: a lit lamp has the ring of light, a dark one has not" (shapes on > shapes off)
+
+    check "instruments: a sparkline of fewer than two values is nothing, of a flat series is a line, of a series is a line and a dot"
+        (isEmpty (Instruments.sparkline 100.0f 30.0f th.Up [| 1.0f |]) && shapes (Instruments.sparkline 100.0f 30.0f th.Up [| 3.0f; 3.0f; 3.0f |]) = 2 && shapes (Instruments.sparkline 100.0f 30.0f th.Up [| 1.0f; 4.0f; 2.0f; 8.0f |]) = 2)
+    let card = Instruments.kpi th "k1" 220.0f 90.0f "Throughput" "1 204 / h" "+4.2 % since the hour" Normal [| 1.0f; 2.0f; 1.5f; 3.0f |]
+    check "instruments: a key figure is named with its value, and its change and its state are its description"
+        (match semantics card with Some s -> s.Name = "Throughput: 1 204 / h" && s.Description = "+4.2 % since the hour, normal" | None -> false)
+
 let run () : int =
     scaleTests ()
     pyramidTests ()
     densityTests ()
     geometryTests ()
     sceneTests ()
+    instrumentTests ()
     printfn "%d checks, %d failed" count failures
     failures
 

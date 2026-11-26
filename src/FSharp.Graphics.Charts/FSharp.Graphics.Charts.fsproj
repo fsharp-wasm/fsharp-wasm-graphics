@@ -17,6 +17,7 @@
     <Compile Include="Density.fs" />
     <Compile Include="Geometry.fs" />
     <Compile Include="Chart.fs" />
+    <Compile Include="Instruments.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../FSharp.Math/FSharp.Math.fsproj" />
