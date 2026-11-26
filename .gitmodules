@@ -10,3 +10,7 @@
 [submodule "tools/fsharp"]
 	path = tools/fsharp
 	url = ../fsharp/
+[submodule "lib/fsharp-wasm-core"]
+	path = lib/fsharp-wasm-core
+	url = ../fsharp-wasm-core
+	branch = develop

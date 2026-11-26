@@ -5,6 +5,9 @@
   <PropertyGroup>
     <FSharpWasmCoreDir Condition="'$(FSharpWasmCoreDir)' == '' and '$(FSHARP_WASM_CORE_DIR)' != ''">$(FSHARP_WASM_CORE_DIR)/FSharp.Wasm.Core</FSharpWasmCoreDir>
     <FSharpWasmCoreDir Condition="'$(FSharpWasmCoreDir)' == ''">$(MSBuildThisFileDirectory)tools/fsharp-wasm/core/FSharp.Wasm.Core</FSharpWasmCoreDir>
+    <!-- The libraries of fsharp-wasm-core that this repository builds on (FSharp.Wasm.Icons): the checkout in FSHARP_WASM_CORE_DIR, or the submodule lib/fsharp-wasm-core. -->
+    <FSharpWasmCoreRoot Condition="'$(FSharpWasmCoreRoot)' == '' and '$(FSHARP_WASM_CORE_DIR)' != ''">$(FSHARP_WASM_CORE_DIR)</FSharpWasmCoreRoot>
+    <FSharpWasmCoreRoot Condition="'$(FSharpWasmCoreRoot)' == ''">$(MSBuildThisFileDirectory)lib/fsharp-wasm-core</FSharpWasmCoreRoot>
   </PropertyGroup>
 
   <!-- Packages: the library projects of src/ opt in with <IsPackable>true</IsPackable>; demos, tests and hosts that bring a
