@@ -61,6 +61,24 @@ let tests () =
      | Damage.Regions rs -> check "two buttons side by side with a gap of a few pixels are one region" (rs.Length = 1)
      | _ -> check "two buttons side by side are a region" false)
 
+    // a crosshair that moves: its two lines cross, and its card goes with it.  The regions are the lines and the card, and not the plot that the lines span
+    let plotBox = rect 0.0f 100.0f 800.0f 500.0f (colour 17uy 28uy 51uy)
+    let crosshair (x: float32) (y: float32) =
+        draw (rect x 100.0f 1.0f 500.0f (colour 148uy 163uy 184uy)) @ draw (rect 0.0f y 800.0f 1.0f (colour 148uy 163uy 184uy)) @ draw (rect (x + 16.0f) (y - 40.0f) 110.0f 80.0f (colour 30uy 41uy 59uy))
+        @ draw (rect (x - 5.0f) (y - 5.0f) 10.0f 10.0f (colour 59uy 130uy 246uy))
+    let withCrosshair x y = list (draw plotBox @ crosshair x y)
+    (match Damage.between (withCrosshair 300.0f 300.0f) (withCrosshair 340.0f 330.0f) (Rect.create 0.0f 0.0f 1000.0f 700.0f) with
+     | Damage.Regions rs ->
+        let total = rs |> Array.sumBy (fun r -> r.W * r.H)
+        check "a crosshair that moves is a few thin regions, not the plot" (rs.Length <= 6 && total < 0.1f * 800.0f * 500.0f)
+        check "and the old and the new places of its lines are in them" (rs |> Array.exists (fun r -> covers r (Rect.create 300.0f 100.0f 1.0f 500.0f)) && rs |> Array.exists (fun r -> covers r (Rect.create 0.0f 330.0f 800.0f 1.0f)))
+     | _ -> check "a crosshair that moves is regions" false)
+    // eight small changes far apart are at most six regions, and they are not one box around all of them
+    let dots (moved: bool) = list (panel @ List.concat [ for i in 0 .. 7 -> draw (rect (20.0f + 120.0f * float32 i) (if moved then 400.0f else 380.0f) 20.0f 20.0f (colour 1uy 2uy 3uy)) ])
+    (match Damage.between (dots false) (dots true) canvas with
+     | Damage.Regions rs -> check "eight changes far apart are at most six regions, merged by the least area wasted" (rs.Length <= 6 && rs.Length >= 2)
+     | _ -> check "eight changes far apart are regions" false)
+
     // two buttons in groups of their own (a transform each), both changed: the stretch between the changes closes the first group and opens the second, and still it is two regions
     let grouped (a: bool) (b: bool) =
         let group (dx: float32) (hovered: bool) = [ PushTransform (Mat3x2.translation dx 0.0f) ] @ draw (rect 20.0f 20.0f 100.0f 36.0f (if hovered then colour 90uy 90uy 255uy else colour 50uy 50uy 200uy)) @ [ PopTransform ]

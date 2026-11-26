@@ -143,8 +143,9 @@ module Damage =
 
     let private area (r: Rect) : float32 = r.W * r.H
 
-    /// Boxes that overlap, or whose union is hardly larger than the two together (a button and its label), are one box; two that are far apart stay two (the pointer moving from one button to
-    /// another changes both, and what lies between is the same picture).
+    /// Boxes whose union is hardly larger than the two together (a button and its label) are one box; two that are far apart stay two (the pointer moving from one button to another changes
+    /// both, and what lies between is the same picture).  Boxes that merely overlap are not one box: the two lines of a crosshair cross, and their union is the whole plot, which is
+    /// what a redraw must not be for a pointer that moves.  (Two regions that overlap are drawn one after the other, each whole inside its clip: the same pixels.)
     let private merge (boxes: ResizeArray<Rect>) : ResizeArray<Rect> =
         let boxes = ResizeArray<Rect>(boxes)
         let mutable again = true
@@ -155,12 +156,30 @@ module Damage =
                 let mutable j = i + 1
                 while j < boxes.Count do
                     let u = union boxes.[i] boxes.[j]
-                    if touches boxes.[i] boxes.[j] || area u <= 1.25f * (area boxes.[i] + area boxes.[j]) then
+                    if area u <= 1.25f * (area boxes.[i] + area boxes.[j]) then
                         boxes.[i] <- u
                         boxes.RemoveAt j
                         again <- true
                     else j <- j + 1
                 i <- i + 1
+        boxes
+
+    /// At most `limit` boxes: while there are more, the two whose union wastes the least (the area it adds to the two) are made one.  A pointer that moves a crosshair and its card changes
+    /// eight boxes; the three that they make are small, where one box around all of them is the plot.
+    let private fewer (limit: int) (boxes: ResizeArray<Rect>) : ResizeArray<Rect> =
+        while boxes.Count > limit do
+            let mutable bi = 0
+            let mutable bj = 1
+            let mutable best = infinityf
+            for i in 0 .. boxes.Count - 2 do
+                for j in i + 1 .. boxes.Count - 1 do
+                    let waste = area (union boxes.[i] boxes.[j]) - area boxes.[i] - area boxes.[j]
+                    if waste < best then
+                        best <- waste
+                        bi <- i
+                        bj <- j
+            boxes.[bi] <- union boxes.[bi] boxes.[bj]
+            boxes.RemoveAt bj
         boxes
 
     let private isState (c: DrawCommand) : bool =
@@ -192,7 +211,7 @@ module Damage =
         if cut.Count = 0 then Nothing
         else
             let merged = if cut.Count > 64 then ResizeArray<Rect>([ Seq.reduce union cut ]) else merge cut
-            let merged = if merged.Count > mostRegions then ResizeArray<Rect>([ Seq.reduce union merged ]) else merged
+            let merged = fewer mostRegions merged
             let mutable total = 0.0f
             for r in merged do total <- total + area r
             if total > wholeShare * area canvas then Everything else Regions (merged.ToArray())
