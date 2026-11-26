@@ -71,13 +71,14 @@ module Drop =
         | [] -> None
         | first :: rest -> Some (List.fold (fun (best: Slot) (s: Slot) -> if better s best then s else best) first rest)
 
+    /// The drop at a place of a slot, with its mark: what a pointer position resolves to, and what a keyboard steps through.
+    let place (s: Slot) (position: Position) : Drop = { Target = s.Id; Position = position; Mark = markOf s.Bounds s.Flow position }
+
     /// The drop that a pointer position means over these slots; none when there are no slots.
     let resolve (slots: Slot list) (p: Vec2) : Drop option =
         match nearest slots p with
         | None -> None
-        | Some s ->
-            let position = positionIn s p
-            Some { Target = s.Id; Position = position; Mark = markOf s.Bounds s.Flow position }
+        | Some s -> Some (place s (positionIn s p))
 
 /// A drag as a session of what the pointer did.  `'p` is what is dragged (a palette entry, a block): the application's.
 type Session<'p> =
@@ -132,6 +133,60 @@ module Drag =
         match s with
         | Dragging (_, _, _, over) -> over
         | _ -> None
+
+/// The keyboard's way to the same drop: no pointer, so the places a drop can go are visited one after the other, in reading order, and the drop is the one it stops at.  It is a session
+/// like the pointer's (`Dragging`, whose `at` is the middle of the mark), so a view draws the same mark and `Drag.release` and `Drag.cancel` end it, on Enter and on Escape.
+module Keyboard =
+
+    /// Every place a drop can go, in the order the slots are given (reading order): before each slot, into each one that nests, and after the last (a slot's end is the start of the next).
+    let places (slots: Slot list) : Drop list =
+        let last = List.length slots - 1
+        slots
+        |> List.mapi (fun i s ->
+            [ yield Drop.place s Before
+              if s.Nests then yield Drop.place s Into
+              if i = last then yield Drop.place s After ])
+        |> List.concat
+
+    let private middle (r: Rect) : Vec2 = Vec2.create (r.X + r.W * 0.5f) (r.Y + r.H * 0.5f)
+
+    let private at (drop: Drop) (payload: 'p) : Session<'p> =
+        let m = middle drop.Mark
+        Dragging (payload, m, m, Some drop)
+
+    let private sameAs (f: Drop) (d: Drop) : bool = d.Target = f.Target && d.Position = f.Position
+
+    /// The place the keyboard visits that is `f`: itself, or, for the end of a slot that is not the last (the pointer says "after 2" where the keyboard has "before 3"), the start of the next.
+    let private startFrom (slots: Slot list) (all: Drop list) (f: Drop) : Drop option =
+        match all |> List.tryFind (sameAs f) with
+        | Some d -> Some d
+        | None when f.Position = After ->
+            slots |> List.skipWhile (fun s -> s.Id <> f.Target) |> List.tryItem 1
+            |> Option.bind (fun next -> all |> List.tryFind (fun d -> d.Target = next.Id && d.Position = Before))
+        | None -> None
+
+    /// Pick something up with the keyboard: it is over `from` (the drop the pointer had, say) when that is a place of these slots or the end of one, else over the first place;
+    /// nothing is picked up when there is no place.
+    let grab (payload: 'p) (slots: Slot list) (from: Drop option) : Session<'p> =
+        let all = places slots
+        let start = from |> Option.bind (startFrom slots all)
+        match start, all with
+        | Some d, _ | None, d :: _ -> at d payload
+        | None, [] -> Idle
+
+    /// An arrow key: `by` places on (negative: back), stopping at the first and the last.  A drag that is over nothing goes to the first place (`by` > 0) or the last (`by` < 0).
+    let step (slots: Slot list) (by: int) (s: Session<'p>) : Session<'p> =
+        match s with
+        | Dragging (payload, _, _, over) ->
+            let all = places slots
+            let n = List.length all
+            let current = over |> Option.bind (fun o -> all |> List.tryFindIndex (sameAs o))
+            let index =
+                match current with
+                | Some i -> max 0 (min (n - 1) (i + by))
+                | None -> if by < 0 then n - 1 else 0
+            if n = 0 then s else at (List.item index all) payload
+        | _ -> s
 
 module Scroll =
 

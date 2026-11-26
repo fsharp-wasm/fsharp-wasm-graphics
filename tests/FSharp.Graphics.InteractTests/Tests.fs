@@ -116,8 +116,36 @@ let private scrollTests () =
     check "the sides scroll too" ((near 395.0 300.0).X > 0.0f && (near 5.0 300.0).X < 0.0f)
     check "no room for an edge: no scroll" ((Scroll.near view 0.0f 20.0f (pt 399.0 599.0)) = Vec2.create 0.0f 0.0f)
 
+let private keyboardTests () =
+    let target (s: Session<string>) = (Drag.over s) |> Option.map (fun d -> d.Target, d.Position)
+    let places = Keyboard.places column |> List.map (fun d -> d.Target, d.Position)
+    check "the places of a list: before each block and after the last" (places = [ 1, Before; 2, Before; 3, Before; 3, After ])
+    let tree = [ slot 1 0.0 0.0 200.0 100.0 true; slot 2 10.0 10.0 180.0 30.0 false; slot 3 0.0 120.0 200.0 40.0 false ]
+    check "a slot that nests has a place inside it, after the one before it" (Keyboard.places tree |> List.map (fun d -> d.Target, d.Position) = [ 1, Before; 1, Into; 2, Before; 3, Before; 3, After ])
+    check "no slots, no places, nothing picked up" (Keyboard.places [] = [] && (Keyboard.grab "x" [] None : Session<string>) = Idle)
+    let held = Keyboard.grab "image" column None
+    check "picked up it is a drag over the first place" (Drag.isDragging held && target held = Some (1, Before) && Drag.payload held = Some "image")
+    check "its position is the middle of the mark, where a view draws it" (match held with Dragging (_, _, at, Some d) -> at = Vec2.create (d.Mark.X + d.Mark.W * 0.5f) (d.Mark.Y + d.Mark.H * 0.5f) | _ -> false)
+    check "an arrow key goes to the next place" (target (Keyboard.step column 1 held) = Some (2, Before))
+    let presses (n: int) (s: Session<string>) : Session<string> = List.fold (fun acc _ -> Keyboard.step column 1 acc) s [ 1 .. n ]
+    check "and on to the last place" (target (presses 3 held) = Some (3, After))
+    check "it stops at the last place" (target (presses 9 held) = Some (3, After))
+    check "it stops at the first place" (target (Keyboard.step column -1 held) = Some (1, Before))
+    check "back from the last" (target (Keyboard.step column -1 (presses 9 held)) = Some (3, Before))
+    check "picked up over the drop the pointer had, it starts there" (target (Keyboard.grab "image" column (Drop.resolve column (pt 50.0 60.0))) = Some (2, Before))
+    check "the end of a block that is not the last is the start of the next one" (target (Keyboard.grab "image" column (Drop.resolve column (pt 50.0 80.0))) = Some (3, Before))
+    check "the end of the last block is a place of its own" (target (Keyboard.grab "image" column (Drop.resolve column (pt 50.0 400.0))) = Some (3, After))
+    check "a place that is not one of these slots starts at the first" (target (Keyboard.grab "image" column (Some { Target = 99; Position = Before; Mark = Rect.create 0.0f 0.0f 1.0f 1.0f })) = Some (1, Before))
+    check "enter drops where it is, with what was picked up" (match Drag.release (Keyboard.step column 1 held) with Some ("image", d) -> d.Target = 2 && d.Position = Before | _ -> false)
+    check "escape (cancel) drops nothing" ((Drag.release (Drag.cancel () : Session<string>)).IsNone)
+    check "a key with nothing picked up does nothing" (Keyboard.step column 1 (Idle : Session<string>) = Idle)
+    check "a key when the slots are gone leaves the drag where it was" (Keyboard.step [] 1 held = held)
+    let lost = match held with Dragging (p, o, a, _) -> Dragging (p, o, a, None) | x -> x
+    check "a drag over nothing goes to the first place on the way forward, the last on the way back" (target (Keyboard.step column 1 lost) = Some (1, Before) && target (Keyboard.step column -1 lost) = Some (3, After))
+
 let run () : int =
     dropTests ()
+    keyboardTests ()
     propertyTests ()
     sessionTests ()
     scrollTests ()

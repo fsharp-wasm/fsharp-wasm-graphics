@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- FSharp.Graphics.Interact: where a drag lands.  Slots (a place that things can be dropped before, after or into), the drop that a pointer position means,
-       a drag as a session (press, move, release, cancel) and the scrolling near an edge.  Pure geometry on FSharp.Math: no scene graph, no DOM, no canvas, so the
+       a drag as a session (press, move, release, cancel), the same drag by the keyboard (the places in reading order, an arrow key to the next) and the scrolling near an edge.  Pure geometry on FSharp.Math: no scene graph, no DOM, no canvas, so the
        widget editor (a canvas) and the newsletter designer (the DOM) use the same code.  The picking of the scene graph (Hit) and the layout it computes are what
        a canvas takes the slots from; the browser's element rectangles are where the DOM takes them from.  What is dropped, and what a drop does to the document,
        is the application's (FSharp.Wasm.Edit of fsharp-wasm-core has the operations). -->
