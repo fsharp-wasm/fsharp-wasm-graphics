@@ -1,5 +1,9 @@
 # fsharp-wasm-graphics
 
+<!-- status -->
+[![CI](https://github.com/fsharp-wasm/fsharp-wasm-graphics/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/fsharp-wasm/fsharp-wasm-graphics/actions/workflows/ci.yml) · [Status of every repository](https://fsharp-wasm.github.io/status/)
+<!-- /status -->
+
 <!-- platform -->
 > **Part of the [fsharp-wasm platform](https://fsharp-wasm.github.io/projects/)**: graphics and text. Builds on [core](https://github.com/fsharp-wasm/fsharp-wasm-core), [glyph-aura](https://github.com/fsharp-wasm/fsharp-glyph-aura). Used by [ide](https://github.com/fsharp-wasm/fsharp-wasm-ide), [backend](https://github.com/fsharp-wasm/fsharp-wasm-backend) (the canvas client), [runtime](https://github.com/fsharp-wasm/fsharp-wasm-runtime) (the scene gallery).
 > [All projects](https://fsharp-wasm.github.io/projects/) · [Roadmap](https://fsharp-wasm.github.io/docs/roadmap/) · [Tests](https://fsharp-wasm.github.io/tests/) · [Benchmarks](https://fsharp-wasm.github.io/benchmarks/) · [Live demos](https://fsharp-wasm.github.io/demos/)
