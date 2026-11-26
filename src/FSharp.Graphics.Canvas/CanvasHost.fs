@@ -91,7 +91,7 @@ type CanvasHost(text: ITextEngine) =
     /// the model within the same frame (two keys in a row: Tab, Tab) must meet the handlers of the state it is meant for, not of the frame before: the scene is built again first.
     /// Not for the movement of the pointer, which can come a thousand times a second and is content with the frame's state.
     member _.Input(evt: InputEvent) : bool =
-        let discrete = (match evt with KeyDown _ | KeyUp _ | PointerDown _ | PointerUp _ -> true | _ -> false)
+        let discrete = (match evt with KeyDown _ | KeyUp _ | TextInput _ | PointerDown _ | PointerUp _ -> true | _ -> false)
         if dirty && discrete then rebuild (started + float elapsed)
         let handled = dispatcher.Handle(resolved, evt)
         let shown = dispatcher.Cursor

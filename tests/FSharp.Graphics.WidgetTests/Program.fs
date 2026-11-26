@@ -411,6 +411,29 @@ let gridTests () =
     check "grid: scrolled far down it still asks for a window's worth" (asked.Value = 10 * 4)
     check "grid: and says what it shows" ((find "grid" (Grid.view (mkUi ()) "grid" "Ledger" (props { Grid.start with OffsetY = 500.0f * 28.0f; Selected = Some(502, 1) }))).Value = "Row 502, Col 1: 50201")
 
+let textTests () =
+    section "Typed text"
+    // what a browser says for a key is the character, with the layout and Shift applied: all of these were dropped
+    let apply shift key = TextEdit.apply shift key ""
+    check "text: punctuation as a browser names it is typed (. , - / ; ' = _)" ([ "."; ","; "-"; "/"; ";"; "'"; "="; "_" ] |> List.forall (fun k -> apply false k = k))
+    check "text: what Shift made is typed as it is (! ? : \" @ #)" ([ "!"; "?"; ":"; "\""; "@"; "#" ] |> List.forall (fun k -> apply false k = k || apply true k = k))
+    check "text: a letter of another layout is typed (ä ö ü ß)" ([ "ä"; "ö"; "ü"; "ß" ] |> List.forall (fun k -> apply false k = k))
+    check "text: a key name of a desktop host is still a key (Period, Number1, Space, Backspace)" (apply false "Period" = "." && apply false "Number1" = "1" && apply false "Space" = " " && TextEdit.apply false "Backspace" "ab" = "a")
+    check "text: a control character or an unknown key name types nothing" (apply false "\t" = "" && apply false "F5" = "" && apply false "Dead" = "")
+    check "text: typed text is appended as the platform made it (Caps Lock, AltGr, accents, the euro sign)" (TextEdit.typed "H" "" = "H" && TextEdit.typed "@" "a" = "a@" && TextEdit.typed "\u20AC" "5" = "5\u20AC" && TextEdit.typed "\u00E9" "caf" = "caf\u00E9")
+    check "text: a control character is not text" (TextEdit.typed "\n" "a" = "a" && TextEdit.typed "" "a" = "a")
+    let keys = ResizeArray<string>()
+    let texts = ResizeArray<string>()
+    let ui = mkUi ()
+    let page = Ui.rootText ui (fun k -> keys.Add k) (fun t -> texts.Add t) (Group [ Label.view ui Label.Caption "x" ])
+    let send e = match page with Reactive(h, _) -> h e |> ignore | _ -> ()
+    send (TextInput "@"); send (KeyDown "Backspace"); send (TextInput "H"); send (KeyDown "ArrowLeft")
+    check "text: rootText hands text to onText and the other keys to onKey" (List.ofSeq texts = [ "@"; "H" ] && List.ofSeq keys = [ "Backspace"; "Left" ])
+    let keys2 = ResizeArray<string>()
+    let plain = Ui.root ui (fun k -> keys2.Add k) (Group [ Label.view ui Label.Caption "x" ])
+    (match plain with Reactive(h, _) -> h (TextInput "a") |> ignore; h (KeyDown "Enter") |> ignore | _ -> ())
+    check "text: root does not hear text, only keys" (List.ofSeq keys2 = [ "Enter" ])
+
 [<EntryPoint>]
 let main _ =
     contrastTests ()
@@ -422,6 +445,7 @@ let main _ =
     clockTests ()
     tabsTests ()
     gridTests ()
+    textTests ()
     printfn ""
     if failures.Count = 0 then printfn "%d passed, 0 failed" passed; 0
     else printfn "%d passed, %d failed" passed failures.Count; 1

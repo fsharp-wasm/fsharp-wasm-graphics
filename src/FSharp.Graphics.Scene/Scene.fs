@@ -13,6 +13,9 @@ type InputEvent =
     | PointerLeave of position: Vec2
     | KeyDown      of key: string
     | KeyUp        of key: string
+    /// Text the person typed, as the platform made it: the layout, Shift, Caps Lock, AltGr or Option, a dead key or an input method are already applied (`"H"`, `"@"`, `"ß"`, `"é"`).
+    /// It is not a key: a host that has it sends the printable characters as text and the other keys (Enter, Backspace, the arrows) as keys, and a text field takes the text as it is.
+    | TextInput    of text: string
     /// The wheel in notches (one click of a mouse wheel is 1.0): positive Y is up (away from the user), positive X is right.  A host that gets pixels converts them.
     | Scroll       of delta: Vec2
 

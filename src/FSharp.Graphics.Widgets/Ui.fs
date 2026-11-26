@@ -171,7 +171,10 @@ module Ui =
     /// Wrap the whole UI once: delivers key events to the app (the pointer is always "over" the
     /// root, so the hover chain always contains it) and clears focus on background clicks.  Keys the toolkit handles
     /// itself (see `handleKey`) do not reach `onKey`; the others do, under the toolkit's key names (`keyName`).
-    let root (ui: Ui<'m>) (onKey: string -> unit) (content: Scene) : Scene =
+    ///
+    /// `rootText` is the same for a host that has a text event (`TextInput`): what was typed reaches `onText` as the platform made it, and `onKey` only gets the keys that are not text
+    /// (Backspace, Enter, the arrows, Space for the widgets that take it).  `root` does not hear text: an app that edits text takes `rootText`.
+    let rootText (ui: Ui<'m>) (onKey: string -> unit) (onText: string -> unit) (content: Scene) : Scene =
         Reactive(
             (fun e ->
                 match e with
@@ -181,9 +184,12 @@ module Ui =
                     let k' = keyName k
                     if not (handleKey ui content k') then onKey k'
                     true
+                | TextInput t -> onText t; true
                 | PointerDown _ -> emit ui UiMsg.Blur; false
                 | _ -> false),
             content)
+
+    let root (ui: Ui<'m>) (onKey: string -> unit) (content: Scene) : Scene = rootText ui onKey ignore content
 
 /// Minimal single-line text editing for hosts that only deliver key *names*
 /// (Silk.NET style: "A", "Space", "Number1", "Backspace"). Caret is always at the end.
@@ -225,6 +231,9 @@ module TextEdit =
         | _ -> None
 
     let keyChar (shift: bool) (key: string) : string option =
+        // A single character that is not a letter or a digit is the character itself, as a browser names a key (".", "?", "@", "\"", with the layout and Shift already applied); the names of a
+        // desktop host are words ("Period", "Number1"), so nothing is lost.  It used to be dropped: only letters, digits, a space and the US names of the punctuation could be typed.
+        if key.Length = 1 && not (Char.IsLetterOrDigit key.[0]) && not (Char.IsControl key.[0]) then Some key else
         let plain =
             if key.Length = 1 && Char.IsLetterOrDigit key.[0] then Some (key.ToLowerInvariant())
             elif (key.StartsWith "Number" || key.StartsWith "Keypad") && key.Length = 7 && Char.IsDigit key.[6] then Some (key.Substring 6)
@@ -232,6 +241,10 @@ module TextEdit =
         match plain with
         | Some c when shift -> (match shifted c with Some u -> Some u | None -> Some (c.ToUpperInvariant()))
         | other -> other
+
+    /// Text a host that has a text event delivers (`TextInput`): appended as it is, because the platform has applied the layout, Shift and Caps Lock.  A control character is not text.
+    let typed (text: string) (value: string) : string =
+        if text.Length = 0 || Char.IsControl text.[0] then value else value + text
 
     /// Apply one key to the text (`shift` = Shift currently held, tracked in `UiState.Shift`).
     let apply (shift: bool) (key: string) (value: string) : string =

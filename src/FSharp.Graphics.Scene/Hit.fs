@@ -124,6 +124,6 @@ module Hit =
                 bubble ts evt
             // The handlers of THIS frame under the pointer, not the ones that were there when the pointer last moved: those closed over the state of that frame (the focus, a
             // text), and a key pressed since would act on it.
-            | Scroll _ | KeyDown _ | KeyUp _ ->
+            | Scroll _ | KeyDown _ | KeyUp _ | TextInput _ ->
                 bubble (pick scene (match pointer with ValueSome p -> p | ValueNone -> Vec2.Zero)) evt
             | PointerEnter _ | PointerLeave _ -> false
