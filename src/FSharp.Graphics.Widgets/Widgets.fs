@@ -18,7 +18,8 @@ module internal SemanticRoles =
 module Label =
     type Role = Body | Muted | Caption | Heading | Title
 
-    let view (ui: Ui<'m>) (role: Role) (s: string) : Scene =
+    /// The text of a role with the size of its letters set: what the property "font size" of an editor says; the colour and the semantics stay the role's.
+    let viewSized (ui: Ui<'m>) (role: Role) (fontSize: float32 voption) (s: string) : Scene =
         let th = ui.Theme
         let size, color =
             match role with
@@ -27,12 +28,15 @@ module Label =
             | Caption -> th.FontSize - 2.0f, th.TextMuted
             | Heading -> th.FontSize + 4.0f, th.Text
             | Title -> th.FontSize + 10.0f, th.Text
+        let size = defaultValueArg fontSize size
         let semantics =
             match role with
             | Title -> SemanticRoles.heading 1
             | Heading -> SemanticRoles.heading 2
             | _ -> SemanticRoles.staticText
         Semantic(Semantics.create "" semantics s, Text(s, Ui.textStyle ui size color))
+
+    let view (ui: Ui<'m>) (role: Role) (s: string) : Scene = viewSized ui role ValueNone s
 
 module Divider =
     let horizontal (ui: Ui<'m>) (width: float32) : Scene =

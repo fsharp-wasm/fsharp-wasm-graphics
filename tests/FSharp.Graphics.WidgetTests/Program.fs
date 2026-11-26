@@ -434,6 +434,55 @@ let textTests () =
     (match plain with Reactive(h, _) -> h (TextInput "a") |> ignore; h (KeyDown "Enter") |> ignore | _ -> ())
     check "text: root does not hear text, only keys" (List.ofSeq keys2 = [ "Enter" ])
 
+let propertiesTests () =
+    section "Property widgets"
+    let ui = mkUi ()
+    let sizeR = Properties.range 8.0f 96.0f 2.0f |> Properties.unit "px"
+    check "properties: a value snaps to the step and stays inside the range" (Properties.snap sizeR 9.4f = 10.0f && Properties.snap sizeR 1.0f = 8.0f && Properties.snap sizeR 500.0f = 96.0f && Properties.snap sizeR 8.9f = 8.0f)
+    check "properties: a value is shown with its unit and decimals" (Properties.show sizeR 16.0f = "16px" && Properties.show (Properties.range 0.0f 1.0f 0.05f |> Properties.decimals 2) 0.5f = "0.50" && Properties.show (Properties.range -10.0f 10.0f 1.0f) -3.0f = "-3")
+
+    // the number with a step down and a step up
+    let got = ResizeArray<float32>()
+    let number v = Properties.number ui "fs" "Font size" sizeR v got.Add
+    let act (id: string) (scene: Scene) = (find id scene).Act SemanticAction.Activate
+    act "fs-plus" (number 16.0f); act "fs-minus" (number 16.0f)
+    check "properties: the buttons of a number step it by the step" (List.ofSeq got = [ 18.0f; 14.0f ])
+    check "properties: the step down is off at the lowest value, the step up at the highest" ((find "fs-minus" (number 8.0f)).Disabled && not (find "fs-plus" (number 8.0f)).Disabled && (find "fs-plus" (number 96.0f)).Disabled)
+    check "properties: the value of a number is read out with its caption" (nodes (number 16.0f) |> Array.exists (fun s -> s.Name = "Font size 16px"))
+
+    // a choice and its segments
+    let picked = ResizeArray<int>()
+    let align = Properties.choice ui "align" "Align" [ "Left"; "Centre"; "Right" ] 1 picked.Add
+    act "align-2" align; act "align-0" align
+    check "properties: a segment of a choice picks its index" (List.ofSeq picked = [ 2; 0 ])
+    check "properties: every segment is a button with its name" ([ "Left"; "Centre"; "Right" ] |> List.forall (fun n -> nodes align |> Array.exists (fun s -> s.Role = Role.Button && s.Name = n)))
+
+    // a colour of a palette
+    let palette = [ "Red", Color.rgba 220uy 38uy 38uy 255uy; "Green", Color.rgba 22uy 163uy 74uy 255uy; "Blue", Color.rgba 37uy 99uy 235uy 255uy ]
+    let chosen = ResizeArray<int>()
+    let colour = Properties.color ui "tint" "Colour" palette 1 chosen.Add
+    act "tint-0" colour; act "tint-2" colour
+    check "properties: a swatch picks its colour" (List.ofSeq chosen = [ 0; 2 ])
+    check "properties: the chosen swatch says it is chosen, the others do not" ((find "tint-1" colour).Checked = ValueSome true && (find "tint-0" colour).Checked = ValueSome false)
+    check "properties: a swatch has the name of its colour and a target of 24 pixels" ((find "tint-0" colour).Name = "Red" && (size (Properties.color ui "t" "c" [ "A", Color.White ] 0 ignore)).H >= 24.0f)
+
+    // an angle: the slider moves in steps of one, the presets are the right angles
+    let turns = ResizeArray<float32>()
+    let angle = Properties.angle ui "rot" "Rotation" 90.0f turns.Add
+    act "rot-preset2" angle; act "rot-preset0" angle
+    check "properties: the presets of an angle are the right angles" (List.ofSeq turns = [ 180.0f; 0.0f ])
+    (find "rot" angle).Act SemanticAction.Increment
+    check "properties: an arrow key moves the slider and the value is a whole degree" (turns.Count = 3 && turns.[2] = Properties.snap (Properties.range 0.0f 360.0f 1.0f) turns.[2] && turns.[2] > 90.0f)
+    check "properties: the preset that is the value is the primary button" (nodes angle |> Array.exists (fun s -> s.Name = "90\u00B0"))
+
+    // a section keeps its rows in order under the heading
+    let sec = Properties.section ui "Text" [ Properties.toggle ui "bold" "Bold" true ignore; number 12.0f ]
+    check "properties: a section has its heading and its rows" (nodes sec |> Array.exists (fun s -> s.Name = "Text") && nodes sec |> Array.exists (fun s -> s.Id = "bold") && nodes sec |> Array.exists (fun s -> s.Id = "fs-plus"))
+    check "properties: a row is as wide as the column of the inspector" ((size (Properties.slider ui "w" "Width" sizeR 20.0f ignore)).W <= Properties.Width + 1.0f)
+    // a label of its own size
+    let big = Label.viewSized ui Label.Body (ValueSome 40.0f) "Hello"
+    check "properties: a label of its own font size is taller than the body text" ((size big).H > (size (Label.view ui Label.Body "Hello")).H + 10.0f)
+
 [<EntryPoint>]
 let main _ =
     contrastTests ()
@@ -446,6 +495,7 @@ let main _ =
     tabsTests ()
     gridTests ()
     textTests ()
+    propertiesTests ()
     printfn ""
     if failures.Count = 0 then printfn "%d passed, 0 failed" passed; 0
     else printfn "%d passed, %d failed" passed failures.Count; 1
