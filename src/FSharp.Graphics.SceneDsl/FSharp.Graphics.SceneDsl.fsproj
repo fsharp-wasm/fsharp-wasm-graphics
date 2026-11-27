@@ -8,6 +8,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
       <IsPackable>true</IsPackable>
+      <Description>Builders and operators that write a scene as F# expressions, with an optimiser pass. Runs under .NET and as WebAssembly GC.</Description>
+      <PackageTags>dsl;scene-graph</PackageTags>
 </PropertyGroup>
   <ItemGroup>
     <Compile Include="Num.fs" />

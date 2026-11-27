@@ -10,6 +10,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);FS3370;FS3391</NoWarn>
       <IsPackable>true</IsPackable>
+      <Description>Desktop host services for .NET only: a protocol decoder, a software rasteriser, fonts and PNG output. Never referenced by the WebAssembly build.</Description>
+      <PackageTags>rasterizer;png</PackageTags>
 </PropertyGroup>
   <ItemGroup>
     <Compile Include="Reader.fs" />

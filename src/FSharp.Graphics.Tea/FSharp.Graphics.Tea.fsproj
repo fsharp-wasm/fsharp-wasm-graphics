@@ -7,6 +7,8 @@
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
       <IsPackable>true</IsPackable>
+      <Description>The Elmish architecture (model, update, view, commands) for scene-graph programs. Runs under .NET and as WebAssembly GC.</Description>
+      <PackageTags>elmish;tea;mvu</PackageTags>
 </PropertyGroup>
   <ItemGroup>
     <Compile Include="Cmd.fs" />

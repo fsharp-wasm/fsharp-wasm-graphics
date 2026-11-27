@@ -7,6 +7,8 @@
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
       <IsPackable>true</IsPackable>
+      <Description>The render pipeline: diffing of scenes, cached nodes and the protocol that carries a frame to a renderer. Runs under .NET and as WebAssembly GC.</Description>
+      <PackageTags>graphics;rendering</PackageTags>
 </PropertyGroup>
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">

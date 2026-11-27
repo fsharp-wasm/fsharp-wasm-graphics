@@ -12,6 +12,8 @@
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>true</IsPackable>
+    <Description>Where a drag lands: drop slots, drag sessions, the same drag by keyboard and edge scrolling; pure geometry shared by canvas and DOM editors. Runs under .NET and as WebAssembly GC.</Description>
+    <PackageTags>drag-and-drop;interaction</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Interact.fs" />

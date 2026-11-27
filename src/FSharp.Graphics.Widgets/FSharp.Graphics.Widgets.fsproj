@@ -7,6 +7,8 @@
     <NuGetAudit>false</NuGetAudit>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
       <IsPackable>true</IsPackable>
+      <Description>Widgets drawn by the scene graph: theme, controls, property widgets, tabs and a grid, with keyboard and accessibility semantics. Runs under .NET and as WebAssembly GC.</Description>
+      <PackageTags>widgets;gui;accessibility</PackageTags>
 </PropertyGroup>
   <ItemGroup>
     <Compile Include="Theme.fs" />

@@ -7,6 +7,8 @@
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
       <IsPackable>true</IsPackable>
+      <Description>Vectors, rectangles, 2D and 3D matrices, Bezier curves and colour: the geometry the scene graph computes with. Runs under .NET and as WebAssembly GC.</Description>
+      <PackageTags>math;geometry;vectors</PackageTags>
 </PropertyGroup>
   <!-- Compiled by fsharp-wasm (WasmGC) only.  FSharp.Math is the root of the dependency graph, so the portable collections of
        FSharp.Wasm.Core (Dictionary, HashSet, Queue, Stack, Map, Set: F# sources, not BCL types) are compiled once, first, and

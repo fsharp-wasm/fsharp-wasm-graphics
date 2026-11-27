@@ -11,6 +11,8 @@
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>true</IsPackable>
+    <Description>The icons of FSharp.Wasm.Icons (Lucide) drawn on a canvas: SVG path data flattened into round-ended strokes in the scene graph. Runs under .NET and as WebAssembly GC.</Description>
+    <PackageTags>icons;canvas;lucide</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="PathData.fs" />

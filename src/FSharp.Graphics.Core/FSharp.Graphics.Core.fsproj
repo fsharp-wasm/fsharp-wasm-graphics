@@ -7,6 +7,8 @@
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
       <IsPackable>true</IsPackable>
+      <Description>The vocabulary of the scene graph: paints, strokes, shadows, corner radii and text types. Runs under .NET and as WebAssembly GC.</Description>
+      <PackageTags>graphics;scene-graph</PackageTags>
 </PropertyGroup>
   <ItemGroup>
     <Compile Include="Types.fs" />

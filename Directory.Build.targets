@@ -1,0 +1,6 @@
+<Project>
+  <!-- After the project: IsPackable is set by the project itself, so what depends on it is decided here (Directory.Build.props runs before the project body). -->
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <PackageTags>fsharp;webassembly;wasm;wasmgc;fsharp-wasm;$(PackageTags)</PackageTags>
+  </PropertyGroup>
+</Project>

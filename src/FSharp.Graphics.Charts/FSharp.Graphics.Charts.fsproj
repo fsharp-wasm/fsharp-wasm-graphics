@@ -10,6 +10,8 @@
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>true</IsPackable>
+    <Description>Charts drawn by the scene graph with data structures that make a frame cost the pixels, not the points: min/max pyramids and summed-area tables. Runs under .NET and as WebAssembly GC.</Description>
+    <PackageTags>charts;visualization</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Scale.fs" />

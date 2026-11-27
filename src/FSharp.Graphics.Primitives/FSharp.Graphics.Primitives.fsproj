@@ -7,6 +7,8 @@
     <Optimize>true</Optimize>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
       <IsPackable>true</IsPackable>
+      <Description>Signed-distance-field shapes, a shape cache and the draw list that renderers consume. Runs under .NET and as WebAssembly GC.</Description>
+      <PackageTags>graphics;sdf</PackageTags>
 </PropertyGroup>
   <ItemGroup>
     <Compile Include="ISdfShape.fs" />
