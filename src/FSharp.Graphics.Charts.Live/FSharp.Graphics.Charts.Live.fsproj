@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- FSharp.Graphics.Charts.Live: charts on the data graph.  A column of a document (FSharp.Wasm.Graph) is the data of a chart: the pyramid, the histogram and the scene are calcs of the
+       engine, so a patch that appends samples costs the new samples and the pixels of the chart, a pan or a zoom costs the scene only, and an undo or a patch from another place moves the
+       chart the same way.  Nothing here draws or counts: that is FSharp.Graphics.Charts, which does not know the graph. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FSharp.Graphics.Charts.Live</RootNamespace>
+    <AssemblyName>FSharp.Graphics.Charts.Live</AssemblyName>
+    <Nullable>enable</Nullable>
+    <Optimize>true</Optimize>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>true</IsPackable>
+    <Description>Charts on an incremental data graph: columns of a document as pyramids, histograms and scenes that are calcs, so an appended sample costs the sample and a pan costs the pixels. Runs under .NET and as WebAssembly GC.</Description>
+    <PackageTags>charts;visualization;incremental;reactive</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Live.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FSharp.Graphics.Charts/FSharp.Graphics.Charts.fsproj" />
+    <ProjectReference Include="$(FSharpWasmCoreRoot)/FSharp.Wasm.Graph/FSharp.Wasm.Graph.fsproj" />
+  </ItemGroup>
+</Project>

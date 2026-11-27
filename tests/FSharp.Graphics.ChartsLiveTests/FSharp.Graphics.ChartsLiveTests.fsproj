@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The tests of FSharp.Graphics.Charts.Live.  Plain checks, no framework, so that the same file runs under .NET (`dotnet run`: the exit code is the number of failures) and compiles with
+       fsharp-wasm.  A chart on the graph is checked against the chart of the same data made in one piece, and the engine's own count (`Flushed.Ran`) says what an edit and a pan cost. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>FSharp.Graphics.ChartsLiveTests</AssemblyName>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Tests.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FSharp.Graphics.Charts.Live/FSharp.Graphics.Charts.Live.fsproj" />
+  </ItemGroup>
+</Project>
