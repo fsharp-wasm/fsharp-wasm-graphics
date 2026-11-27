@@ -3,7 +3,7 @@ name: Release
 # Tagging vX.Y.Z (on main) packs the libraries, pushes them to nuget.org (the secret NUGET_API_KEY; a tag run without it fails), and attaches them to a GitHub release.
 #
 # The tests of the commit are CI's (read before the tag is made); this workflow packs and restores what it made.
-# Icons builds on FSharp.Wasm.Icons of fsharp-wasm-core and Host on GlyphAura of fsharp-glyph-aura, by the same version: those are released first, with the
+# Icons builds on FSharp.Wasm.Icons and Charts.Live on FSharp.Wasm.Graph of fsharp-wasm-core and Host on GlyphAura of fsharp-glyph-aura, by the same version: those are released first, with the
 # same tag, and a push here waits until nuget.org has them (a package whose dependency cannot be restored is worse than no package).  The smoke test uses the packages of the pinned
 # submodule lib/fsharp-wasm-core, so a dry run works before that release exists.
 # A release is made by "Run workflow" on main with the input `version` (X.Y.Z or X.Y.Z-suffix): the run does everything below and makes the tag v<version> itself, with the GitHub
@@ -88,7 +88,7 @@ jobs:
         if: steps.version.outputs.release == 'true'
         run: |
           v="${{ steps.version.outputs.version }}"
-          for id in fsharp.wasm.icons glyphaura; do
+          for id in fsharp.wasm.icons fsharp.wasm.graph glyphaura; do
             for attempt in $(seq 1 45); do
               curl -fsS "https://api.nuget.org/v3-flatcontainer/$id/index.json" 2>/dev/null | jq -e --arg v "${v,,}" '.versions | index($v)' > /dev/null && continue 2
               echo "$id $v is not on nuget.org yet (try $attempt of 45)"; sleep 20
