@@ -64,6 +64,13 @@ What the engine does, measured with its own count (`Flushed`, `tests/FSharp.Grap
 `field` are four uses of it. A scene is `derived`: a calc that reads the viewport and the data, so what it reads is what makes it run. `Live.field` reads a column and the registers `cols` and
 `rows` of its node as a field for `Live.raster` and `Live.contours`.
 
+### The data graph as a diagram
+
+`GraphDiagram.view doc theme direction` draws the graph of a document: a box for every node (`Doc.Nodes`, named by its `name`, else its `title`, else its kind and number, coloured by its kind) and a
+line for every `Ref` of a field (`Doc.Links`: a register, an entry of a map, an item of a list). `Layout` and `Scene` are calcs, so the engine's count says what an edit costs
+(`tests/FSharp.Graphics.ChartsLiveTests`): a node that comes, a link that is set or cleared, a name and the undo of a delete each run the layout and the scene (two calcs); an edit of a number, a
+text that is not a name, or a column that grows runs nothing.
+
 ## Diagrams (`FSharp.Graphics.Diagrams`)
 
 `Layered.layout direction spacing boxes links` is the layered layout of a directed graph (Sugiyama): the links that close a cycle are turned round (a depth-first walk), a box gets the layer

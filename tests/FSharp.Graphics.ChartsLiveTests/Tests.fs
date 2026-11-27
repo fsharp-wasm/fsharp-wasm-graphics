@@ -8,6 +8,7 @@ open FSharp.Graphics.Core
 open FSharp.Graphics.Scene
 open FSharp.Graphics.Charts
 open FSharp.Graphics.Charts.Live
+open FSharp.Graphics.Diagrams
 
 let mutable private failures = 0
 let mutable private count = 0
@@ -186,6 +187,43 @@ let private fieldTests () =
     let (d2, empty) = series ()
     check "field: a column without a size is no field" ((Live.field d2 empty "z").Peek.Cols = 0)
 
+let private graphTests () =
+    let th = Theme.dark (FontId 0UL)
+    let d = Doc(1)
+    let ids = ref (0, 0, 0)
+    d.Edit("make", fun tx ->
+        let a = tx.Create "Account"
+        let b = tx.Create "Ledger"
+        let c = tx.Create "Account"
+        tx.Set(a, "name", Atom.Text "Revenue")
+        tx.Set(b, "name", Atom.Text "Main")
+        tx.Set(a, "ledger", Ref b)
+        tx.Set(c, "ledger", Ref b)
+        ids.Value <- (a, b, c)) |> ignore
+    let (a, b, c) = ids.Value
+    let g = GraphDiagram.view d th Direction.LeftRight
+    let boxesNow () = g.Layout.Peek.Boxes |> Array.map (fun p -> p.Id) |> Array.sort
+    check "graph: a box for each node and a line for each Ref" (boxesNow () = Array.sort [| a; b; c |] && g.Layout.Peek.Routes.Length = 2)
+    check "graph: a node is called by its name, else by its kind and its number" (GraphDiagram.label d a = "Revenue" && GraphDiagram.label d c = "Account " + string (c / 1024))
+    let pl (id: int) = g.Layout.Peek.Boxes |> Array.find (fun p -> p.Id = id)
+    check "graph: the Refs run with the layers: the ledger is in the layer after the two accounts" ((pl a).Layer < (pl b).Layer && (pl c).Layer < (pl b).Layer)
+    check "graph: the diagram is a scene of shapes" (shapes g.Scene.Peek >= 3 * 2 + 2 * 2)
+    let number = d.Edit("a number", fun tx -> tx.Set(a, "size", Num 4.0))
+    check "graph: an edit of a number is no node and no link: nothing runs" (number.Flushed.Ran = 0)
+    let column = d.Edit("a column", fun tx -> tx.Append(a, "history", [| 1.0; 2.0 |]))
+    check "graph: a column that grows reaches nothing either" (column.Flushed.Ran = 0)
+    let named = d.Edit("rename", fun tx -> tx.Set(b, "name", Atom.Text "The main ledger of the company"))
+    check "graph: a name is made again with the layout and the scene (the box is wider)" (named.Flushed.Ran = 2 && (pl b).Rect.W > 100.0f)
+    let mutable e = 0
+    let grown = d.Edit("a node", fun tx -> e <- tx.Create "Account"; tx.Set(e, "ledger", Ref b))
+    check "graph: a node with a link is a box and a line more" (boxesNow () = Array.sort [| a; b; c; e |] && g.Layout.Peek.Routes.Length = 3 && grown.Flushed.Ran = 2)
+    let cut = d.Edit("cut", fun tx -> tx.Set(c, "ledger", Nil))
+    check "graph: a link that is cleared is a line less" (g.Layout.Peek.Routes.Length = 2 && cut.Flushed.Ran = 2)
+    let gone = d.Edit("delete", fun tx -> tx.Delete b)
+    check "graph: the lines of a node that is deleted are not drawn, the node is not" (boxesNow () = Array.sort [| a; c; e |] && g.Layout.Peek.Routes.Length = 0)
+    d.Apply gone.Inverse |> ignore
+    check "graph: the undo of the delete draws them again" (boxesNow () = Array.sort [| a; b; c; e |] && g.Layout.Peek.Routes.Length = 2)
+
 let run () : int =
     samplesTests ()
     chartTests ()
@@ -194,6 +232,7 @@ let run () : int =
     statsTests ()
     scatterTests ()
     fieldTests ()
+    graphTests ()
     printfn "%d checks, %d failed" count failures
     failures
 

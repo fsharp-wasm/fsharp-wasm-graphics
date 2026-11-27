@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../FSharp.Graphics.Charts/FSharp.Graphics.Charts.fsproj" />
+    <ProjectReference Include="../FSharp.Graphics.Diagrams/FSharp.Graphics.Diagrams.fsproj" />
     <ProjectReference Include="$(FSharpWasmCoreRoot)/FSharp.Wasm.Graph/FSharp.Wasm.Graph.fsproj" />
   </ItemGroup>
 </Project>

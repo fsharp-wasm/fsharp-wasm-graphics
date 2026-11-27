@@ -1,9 +1,11 @@
 namespace FSharp.Graphics.Charts.Live
 
+open System.Collections.Generic
 open FSharp.Math
 open FSharp.Wasm.Graph
 open FSharp.Graphics.Scene
 open FSharp.Graphics.Charts
+open FSharp.Graphics.Diagrams
 
 /// The samples of a column as a pyramid that grows (a `Pyramid` has a capacity and does not): the samples are what the column holds, as float32, and `Pyramid` answers the range of any
 /// run of them in O(log n).  `Add` takes what an append brings; a column that was written over starts it again.
@@ -127,3 +129,36 @@ module Live =
     /// Scenes one over the other, the first at the bottom: the chart.  It reads each of them, so it is made again when one is.
     let stack (doc: Doc) (layers: Calc<Scene> list) : Calc<Scene> =
         derived doc Empty (fun () -> Group [ for l in layers -> l.Value ])
+
+/// The data graph of a document drawn as a node-link diagram: a box for every node and a line for every `Ref` (`Doc.Nodes` and `Doc.Links`).  `Layout` and `Scene` are calcs: the layout is
+/// made again when a node comes or goes, when a link changes and when a node is named otherwise, and an edit of anything else (a number in a field, a column that grows) does not reach them.
+type GraphView = { Layout: Calc<FSharp.Graphics.Diagrams.Layout>; Scene: Calc<Scene> }
+
+module GraphDiagram =
+    let private text (a: Atom) : string option = match a with Atom.Text t when t <> "" -> Some t | _ -> None
+
+    /// What a node is called in the diagram: its `name`, else its `title`, else its kind and its number.
+    let label (doc: Doc) (id: int) : string =
+        match text (doc.Get(id, "name")) |> Option.orElse (text (doc.Get(id, "title"))) with
+        | Some t -> t
+        | None -> doc.Kind id + " " + string (id / 1024)
+
+    /// The colour of a kind: the same kind has the same colour in every diagram, whatever the order the nodes came in.
+    let private colourOf (theme: Theme) (kind: string) : Color =
+        let mutable h = 0
+        for c in kind do h <- (h * 31 + int c) &&& 0x7FFFFFFF
+        theme.Palette.[h % theme.Palette.Length]
+
+    /// The diagram of the graph of `doc`.  A link to a node that is gone, to itself, and a second link between the same two nodes are not drawn.
+    let view (doc: Doc) (theme: Theme) (direction: Direction) : GraphView =
+        let layout =
+            Live.derived doc (Layered.layout direction Spacing.standard [||] [||]) (fun () ->
+                let ids = doc.Nodes
+                let there = HashSet<int>(ids)
+                let boxes = ids |> Array.map (fun id -> Diagram.fit theme id (label doc id))
+                let links = doc.Links |> Array.filter (fun (a, b) -> there.Contains a && there.Contains b) |> Array.map (fun (a, b) -> ({ From = a; To = b } : Link))
+                Layered.layout direction Spacing.standard boxes links)
+        let scene =
+            Live.derived doc Empty (fun () ->
+                Diagram.scene theme layout.Value (label doc) (fun id -> colourOf theme (doc.Kind id)))
+        { Layout = layout; Scene = scene }
