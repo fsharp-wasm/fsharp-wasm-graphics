@@ -1,16 +1,25 @@
 name: Release
 
 # Tagging vX.Y.Z (on main) packs the libraries, pushes them to nuget.org (the secret NUGET_API_KEY; a tag run without it fails), and attaches them to a GitHub release.
-# Run by hand (Actions, Release, Run workflow) it is a dry run: the same pack and smoke test, the packages uploaded as an artifact, and nothing published.
 #
 # The tests of the commit are CI's (read before the tag is made); this workflow packs and restores what it made.
 # Icons builds on FSharp.Wasm.Icons of fsharp-wasm-core and Host on GlyphAura of fsharp-glyph-aura, by the same version: those are released first, with the
 # same tag, and a push here waits until nuget.org has them (a package whose dependency cannot be restored is worse than no package).  The smoke test uses the packages of the pinned
 # submodule lib/fsharp-wasm-core, so a dry run works before that release exists.
+# A release is made by "Run workflow" on main with the input `version` (X.Y.Z or X.Y.Z-suffix): the run does everything below and makes the tag v<version> itself, with the GitHub
+# release, once the packages are pushed (a run that fails before that leaves no tag, and can be run again).  Pushing a tag v<version> on main by hand does the same.
+# Run without a version it is a dry run: everything but the push, the release and the tag, and the files uploaded as an artifact.
+
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release this version (X.Y.Z or X.Y.Z-suffix) from main, and make its tag v<version>; empty: a dry run that publishes nothing"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -26,16 +35,29 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: The version, and that a tag is a release of main
+      - name: The version, and whether this is a release
         id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
+          semver='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
           if [[ "$GITHUB_REF_TYPE" == tag ]]; then
-            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::$GITHUB_REF_NAME is not vX.Y.Z or vX.Y.Z-suffix"; exit 1; }
+            version="${GITHUB_REF_NAME#v}"
+            [[ "$GITHUB_REF_NAME" == v* && "$version" =~ $semver ]] || { echo "::error::$GITHUB_REF_NAME is not vX.Y.Z or vX.Y.Z-suffix"; exit 1; }
             git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$GITHUB_REF_NAME is not on main: a release is tagged on main"; exit 1; }
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            release=true
+          elif [[ -n "$INPUT_VERSION" ]]; then
+            version="${INPUT_VERSION#v}"
+            [[ "$version" =~ $semver ]] || { echo "::error::'$INPUT_VERSION' is not X.Y.Z or X.Y.Z-suffix"; exit 1; }
+            [[ "$GITHUB_REF" == refs/heads/main ]] || { echo "::error::a release is made from main, not from $GITHUB_REF"; exit 1; }
+            ! git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null 2>&1 || { echo "::error::v$version exists already"; exit 1; }
+            release=true
           else
-            echo "version=0.0.0-dryrun.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            version="0.0.0-dryrun.${GITHUB_RUN_NUMBER}"
+            release=false
           fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -56,14 +78,14 @@ jobs:
 
       # A release that publishes nothing is a failed release: without the key a tag run stops here, red, before anything is pushed or released.
       - name: The key for nuget.org is there
-        if: github.ref_type == 'tag' && env.NUGET_API_KEY == ''
+        if: steps.version.outputs.release == 'true' && env.NUGET_API_KEY == ''
         run: |
           echo "::error::the secret NUGET_API_KEY is not visible to this repository: an organisation secret has to be given access to fsharp-wasm-graphics"
           exit 1
 
       # nuget.org lists a package some minutes after the push; the tags of the three repositories are pushed one after the other, so wait for them here.
       - name: What these packages depend on is on nuget.org at this version
-        if: github.ref_type == 'tag'
+        if: steps.version.outputs.release == 'true'
         run: |
           v="${{ steps.version.outputs.version }}"
           for id in fsharp.wasm.icons glyphaura; do
@@ -76,13 +98,15 @@ jobs:
 
       # --skip-duplicate: a run that is repeated after a half-way failure pushes only what is missing.
       - name: Push to nuget.org
-        if: github.ref_type == 'tag'
+        if: steps.version.outputs.release == 'true'
         run: dotnet nuget push "dist/nupkg/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
-      - name: GitHub release
-        if: github.ref_type == 'tag'
+      - name: GitHub release (and its tag, when it is not there yet)
+        if: steps.version.outputs.release == 'true'
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: v${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}   # v0.2.0-preview, v1.0.0-rc.1 …
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}   # v0.2.0-preview, v1.0.0-rc.1 …
           files: dist/nupkg/*.nupkg
