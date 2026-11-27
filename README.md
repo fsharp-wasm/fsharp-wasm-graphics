@@ -52,6 +52,12 @@ dotnet run --project tests/FSharp.Graphics.HostTests -c Release
 bash build/pack.sh            # → dist/nupkg/*.nupkg (the library projects; each also carries its sources for fsharp-wasm)
 ```
 
+Each library is a NuGet package of the same name (the dll, its XML documentation, and the sources under `fable/`). Not on nuget.org yet (checked 2026-11-27). A package builds
+on the packages of [fsharp-wasm-core](https://github.com/fsharp-wasm/fsharp-wasm-core) (`FSharp.Wasm.Icons` for `FSharp.Graphics.Icons`) by the same version, so a release is
+tagged there first. `bash build/smoke-pack.sh <version> <folder of core's packages>` restores the packages in a new project and runs it; `.github/workflows/release.yml` does
+that and the pack for a tag `vX.Y.Z` on `main`, pushes to nuget.org when the secret `NUGET_API_KEY` is set (and nuget.org has core at that version), and attaches the packages to a
+GitHub release. Run by hand it is a dry run that publishes nothing.
+
 ## Contributing
 
 Welcome. [CONTRIBUTING](https://github.com/fsharp-wasm/.github/blob/develop/CONTRIBUTING.md) is the organisation's guide and [AGENTS.md](AGENTS.md) says how the platform is worked on (the compiler comes first: a fault found here

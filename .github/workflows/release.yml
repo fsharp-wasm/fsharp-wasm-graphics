@@ -1,0 +1,75 @@
+name: Release
+
+# Tagging vX.Y.Z (on main) packs the libraries, pushes them to nuget.org when the secret NUGET_API_KEY is set, and attaches them to a GitHub release.
+# Run by hand (Actions, Release, Run workflow) it is a dry run: the same pack and smoke test, the packages uploaded as an artifact, and nothing published.
+#
+# The tests of the commit are CI's (read before the tag is made); this workflow packs and restores what it made.
+# Icons builds on FSharp.Wasm.Icons of fsharp-wasm-core, by the same version: fsharp-wasm-core is released first, with the same tag, and a push here is
+# refused until nuget.org has it (a package whose dependency cannot be restored is worse than no package).  The smoke test uses the packages of the pinned
+# submodule lib/fsharp-wasm-core, so a dry run works before that release exists.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}   # job level, so `if: env.NUGET_API_KEY` below can see it
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: The version, and that a tag is a release of main
+        id: version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::$GITHUB_REF_NAME is not vX.Y.Z or vX.Y.Z-suffix"; exit 1; }
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$GITHUB_REF_NAME is not on main: a release is tagged on main"; exit 1; }
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-dryrun.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Pack
+        run: bash build/pack.sh "${{ steps.version.outputs.version }}"
+
+      - name: Smoke test (the packages as a new project restores them)
+        run: |
+          bash lib/fsharp-wasm-core/build/pack.sh "${{ steps.version.outputs.version }}" > /dev/null
+          bash build/smoke-pack.sh "${{ steps.version.outputs.version }}" lib/fsharp-wasm-core/dist/nupkg
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: dist/nupkg/*.nupkg
+
+      - name: fsharp-wasm-core is on nuget.org at this version
+        if: github.ref_type == 'tag' && env.NUGET_API_KEY != ''
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          curl -fsS https://api.nuget.org/v3-flatcontainer/fsharp.wasm.icons/index.json | jq -e --arg v "${v,,}" '.versions | index($v)' > /dev/null \
+            || { echo "::error::FSharp.Wasm.Icons $v is not on nuget.org: release fsharp-wasm-core with the same version first"; exit 1; }
+
+      # needs the NUGET_API_KEY secret; without it the step is skipped.  --skip-duplicate: a run that is repeated after a half-way failure pushes only what is missing.
+      - name: Push to nuget.org
+        if: github.ref_type == 'tag' && env.NUGET_API_KEY != ''
+        run: dotnet nuget push "dist/nupkg/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}   # v0.2.0-preview, v1.0.0-rc.1 …
+          files: dist/nupkg/*.nupkg
