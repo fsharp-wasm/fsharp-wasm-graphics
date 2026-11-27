@@ -11,10 +11,13 @@ module FSharp.Graphics.Browser.ChartDemo
 
 open System
 open FSharp.Math
+open FSharp.Wasm.Graph
 open FSharp.Graphics.Core
 open FSharp.Graphics.Scene
 open FSharp.Graphics.Canvas
 open FSharp.Graphics.Charts
+open FSharp.Graphics.Charts.Live
+open FSharp.Graphics.Diagrams
 
 let private theme = Theme.dark (FontId 0UL)
 
@@ -237,10 +240,214 @@ type CandleChart() =
         member _.Describe(f) =
             "Candlestick chart of " + Format.grouped (float n) + " bars, showing " + Format.grouped f.X.D0 + " to " + Format.grouped f.X.D1
 
+/// Points coloured by a third value, on a colour map: markers while few are in view, a density map of all of them when many are (Scatter.auto).
+type ScienceScatterChart() =
+    let n = 400000
+    let map = Colormap.viridis
+    let mutable xs : float32[] = [||]
+    let mutable ys : float32[] = [||]
+    let mutable zs : float32[] = [||]
+    let zLo = 0.0
+    let zHi = 12.0
+    interface IChart with
+        member _.Id = "science-scatter"
+        member _.Title = "Scatter by value"
+        member _.Covers = "400 000 points coloured by their distance from the origin on viridis: with more than 20 000 in view a density map of all of them is drawn, and zooming in turns it into one marker per point, coloured by the value (the science charts: Scatter, Colormap, ColorBar)."
+        member _.Live = false
+        member _.Prepare() =
+            let t0 = Gfx.now ()
+            xs <- Array.zeroCreate n
+            ys <- Array.zeroCreate n
+            ChartData.cloud 21u n xs ys
+            zs <- Array.init n (fun i -> MathF.Sqrt(xs.[i] * xs.[i] + ys.[i] * ys.[i]))
+            Format.grouped (float n) + " points made in " + ms (Gfx.now () - t0) + " ms"
+        member _.Step(_) = ()
+        member _.XLimits = (-11.0, 11.0)
+        member _.YLimits = Some (-7.0, 7.0)
+        member _.FitY(x0, x1) = (x0, x1)
+        member _.XLabel(step, v) = Format.fixedPoint (Format.decimalsFor step) v
+        member _.YLabel(step, v) = Format.fixedPoint (Format.decimalsFor step) v
+        member _.Legend() = [ ("few", Colormap.at map 0.15); ("many", Colormap.at map 0.9) ]
+        member _.Plot(f, _) =
+            let p = f.Plot
+            // the colour bar says what a marker's colour means (the distance); the density map beyond 20 000 points in view is coloured by how many there are, which is the legend's business
+            let markers = Scatter.visible f xs ys n <= Scatter.MaxMarkers
+            Group [ Scatter.auto f xs ys n 2.0f (Scatter.byValue map zLo zHi zs) map
+                    (if markers then ColorBar.scene theme map (zLo, zHi) (p.X + p.W - 22.0f) (p.Y + 12.0f) 10.0f (min 120.0f (p.H * 0.4f)) (fun step v -> Format.tick step v) else Empty) ]
+        member _.Probe(_, x, y) = ([], [ ("x " + two x + "   y " + two y, theme.Muted); ("distance " + two (Math.Sqrt(x * x + y * y)), theme.Text) ])
+        member _.Describe(f) =
+            "Scatter plot of " + Format.grouped (float n) + " points coloured by their distance from the origin, showing x from " + two f.X.D0 + " to " + two f.X.D1
+
+/// A histogram of a column of a document that grows: the pyramid of the samples, the histogram and the scene are calcs of the data graph, so the samples that arrive cost themselves and the pixels.
+type LiveHistogramChart() =
+    let rate = 4000.0
+    let rng = ChartData.Rng(31u)
+    let mutable doc = Doc(1)
+    let mutable node = 0
+    let mutable view : Source<Frame> option = None
+    let mutable bars : Calc<Scene> option = None
+    let mutable counts : Calc<Histogram> option = None
+    let mutable carry = 0.0
+    let mutable lastEdit = ""
+    let sample () : float =
+        // two humps and a long tail: what a single mean and deviation would hide
+        let r = rng.Next()
+        if r < 0.55f then float (rng.Gauss() * 0.7f - 1.8f)
+        elif r < 0.93f then float (rng.Gauss() * 1.0f + 1.6f)
+        else float (abs (rng.Gauss()) * 3.0f + 2.0f)
+    let add (k: int) =
+        if k > 0 then
+            let xs = Array.init k (fun _ -> sample ())
+            let a = doc.Edit("samples", fun tx -> tx.Append(node, "x", xs))
+            lastEdit <- string a.Flushed.Ran + " calcs ran for " + string k + " samples"
+    interface IChart with
+        member _.Id = "science-histogram"
+        member _.Title = "A live histogram"
+        member _.Covers = "A histogram of a column of a document that grows by 4 000 samples a second: the histogram, the bars and the chart are calcs of the data graph, so an appended sample is added to its bin and nothing is counted again, and a pan or a zoom runs the scene and never reaches the counts."
+        member _.Live = true
+        member _.Prepare() =
+            let t0 = Gfx.now ()
+            doc <- Doc(1)
+            let made = ref 0
+            doc.Edit("make", fun tx -> made.Value <- tx.Create "samples") |> ignore
+            node <- made.Value
+            let frame = Frame.create 800.0f 400.0f 40.0f 10.0f 10.0f 20.0f (-6.0, 8.0) (0.0, 1.0)
+            let v = Live.viewport doc frame
+            let h = Live.histogram doc node "x" -6.0 8.0 56
+            view <- Some v
+            counts <- Some h
+            bars <- Some (Live.bars doc v h theme.Palette.[1])
+            add 200000
+            Format.grouped 200000.0 + " samples appended in one edit and counted in " + ms (Gfx.now () - t0) + " ms; " + Format.grouped rate + " arrive a second now"
+        member _.Step(dt) =
+            carry <- carry + dt * rate / 1000.0
+            let k = int carry
+            carry <- carry - float k
+            add (min k 20000)
+        member _.XLimits = (-6.0, 8.0)
+        member _.YLimits = None
+        member _.FitY(_, _) = HistogramBars.yRange counts.Value.Peek
+        member _.XLabel(step, v) = Format.fixedPoint (Format.decimalsFor step) v
+        member _.YLabel(step, v) = Format.tick step v
+        member _.Legend() = [ ("samples", theme.Palette.[1]) ]
+        member _.Plot(f, _) =
+            Live.show doc view.Value f |> ignore
+            bars.Value.Value
+        member _.Probe(f, x, _) =
+            let h = counts.Value.Peek
+            let b = h.BinOf x
+            if b < 0 || b >= h.Bins then ([], [])
+            else ([], [ ("bin " + two (h.Edge b) + " to " + two (h.Edge(b + 1)), theme.Muted); (Format.grouped (float h.Counts.[b]) + " samples", theme.Text); (lastEdit, theme.Muted) ])
+        member _.Describe(_) =
+            "Histogram of " + Format.grouped (float counts.Value.Peek.Total) + " samples with two humps and a tail"
+
+/// A field of values as coloured cells with its contour lines: the raster is downsampled to the pixels of the screen, whatever the size of the field.
+type FieldChart() =
+    let cols = 480
+    let rows = 360
+    let map = Colormap.viridis
+    let mutable field : float32[] = [||]
+    let mutable lo = 0.0
+    let mutable hi = 1.0
+    let levels = ref [||]
+    interface IChart with
+        member _.Id = "science-field"
+        member _.Title = "A field with contours"
+        member _.Covers = "A field of 480 by 360 values as coloured cells on viridis, with its contour lines (marching squares) and a colour bar: the raster is averaged down to the pixels of the screen, so the cost of a frame is the screen and not the field."
+        member _.Live = false
+        member _.Prepare() =
+            let t0 = Gfx.now ()
+            // two hills and a ridge
+            field <- Array.init (cols * rows) (fun i ->
+                let x = float (i % cols) / float (cols - 1) * 10.0
+                let y = float (i / cols) / float (rows - 1) * 7.5
+                let hill (cx: float) (cy: float) (w: float) (h: float) = h * Math.Exp(-((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (2.0 * w * w))
+                float32 (hill 3.0 3.0 1.1 8.0 + hill 7.0 4.5 1.6 5.0 + 1.5 * Math.Sin(x * 1.3) * Math.Cos(y * 1.7)))
+            let (a, b) = Raster.range field
+            lo <- a
+            hi <- b
+            levels.Value <- Contour.niceLevels lo hi 9
+            Format.grouped (float (cols * rows)) + " values made in " + ms (Gfx.now () - t0) + " ms"
+        member _.Step(_) = ()
+        member _.XLimits = (0.0, 10.0)
+        member _.YLimits = Some (0.0, 7.5)
+        member _.FitY(x0, x1) = (x0, x1)
+        member _.XLabel(step, v) = Format.fixedPoint (Format.decimalsFor step) v
+        member _.YLabel(step, v) = Format.fixedPoint (Format.decimalsFor step) v
+        member _.Legend() = [ ("low", Colormap.at map 0.0); ("high", Colormap.at map 1.0) ]
+        member _.Plot(f, _) =
+            let p = f.Plot
+            Group [ Raster.scene f (0.0, 10.0) (0.0, 7.5) field cols rows map (lo, hi)
+                    Contour.scene f (0.0, 10.0) (0.0, 7.5) field cols rows levels.Value (Colormap.reversed map) (lo, hi) 1.2f
+                    ColorBar.scene theme map (lo, hi) (p.X + p.W - 22.0f) (p.Y + 12.0f) 10.0f (min 140.0f (p.H * 0.45f)) (fun step v -> Format.tick step v) ]
+        member _.Probe(_, x, y) =
+            let c = int (x / 10.0 * float (cols - 1) + 0.5)
+            let r = int (y / 7.5 * float (rows - 1) + 0.5)
+            if c < 0 || c >= cols || r < 0 || r >= rows then ([], [])
+            else ([], [ ("x " + two x + "   y " + two y, theme.Muted); ("value " + two (float field.[r * cols + c]), theme.Text) ])
+        member _.Describe(f) =
+            "Field of " + Format.grouped (float (cols * rows)) + " values with contour lines, showing x from " + two f.X.D0 + " to " + two f.X.D1
+
+/// The data graph of a small document drawn as a node-link diagram; the viewport of the chart pans and zooms the diagram.
+type GraphChart() =
+    let mutable view : GraphView option = None
+    let mutable size = Vec2.create 1.0f 1.0f
+    interface IChart with
+        member _.Id = "science-graph"
+        member _.Title = "The data graph"
+        member _.Covers = "The graph of a document (its nodes and the Refs of their fields) as a layered diagram: a box for every node, a line for every link, made again when a node, a link or a name changes and for nothing else. Drag to pan, wheel to zoom."
+        member _.Live = false
+        member _.Prepare() =
+            let t0 = Gfx.now ()
+            let doc = Doc(1)
+            doc.Edit("model", fun tx ->
+                let book = tx.Create "Ledger"
+                tx.Set(book, "name", Atom.Text "General ledger")
+                let accounts =
+                    [ for name in [ "Cash"; "Receivables"; "Inventory"; "Payables"; "Equity"; "Revenue"; "Cost of sales"; "Salaries"; "Rent"; "Taxes" ] ->
+                        let a = tx.Create "Account"
+                        tx.Set(a, "name", Atom.Text name)
+                        tx.Set(a, "ledger", Ref book)
+                        a ]
+                let periods = [ for m in 1 .. 4 -> (let p = tx.Create "Period" in tx.Set(p, "name", Atom.Text ("Q" + string m)); tx.Set(p, "ledger", Ref book); p) ]
+                // every account is closed in every period, a period closes into the next one
+                for p in periods do
+                    for a in accounts |> List.take 5 do tx.Insert(p, "closes", 0, Ref a)
+                for (p, q) in List.pairwise periods do tx.Set(p, "next", Ref q)
+                let report = tx.Create "Report"
+                tx.Set(report, "name", Atom.Text "Annual report")
+                for p in periods do tx.Put(report, "periods", "p" + string (p / 1024), Ref p)
+                tx.Set(report, "ledger", Ref book)) |> ignore
+            let v = GraphDiagram.view doc theme Direction.LeftRight
+            view <- Some v
+            size <- v.Layout.Peek.Size
+            string v.Layout.Peek.Boxes.Length + " nodes and " + string v.Layout.Peek.Routes.Length + " links laid out in " + ms (Gfx.now () - t0) + " ms"
+        member _.Step(_) = ()
+        member _.XLimits = (0.0, float size.X)
+        member _.YLimits = Some (0.0, float size.Y)
+        member _.FitY(x0, x1) = (x0, x1)
+        member _.XLabel(_, _) = ""
+        member _.YLabel(_, _) = ""
+        member _.Legend() = []
+        member _.Plot(f, _) =
+            // the diagram is drawn in its own coordinates (y grows downwards); the frame says where those are on the screen
+            let kx = (f.X.R1 - f.X.R0) / float32 (f.X.D1 - f.X.D0)
+            let ky = (f.Y.R1 - f.Y.R0) / float32 (f.Y.D1 - f.Y.D0)
+            let h = size.Y
+            let m = { Mat3x2.identity with M11 = kx; M22 = -ky; M31 = f.X.R0 - float32 f.X.D0 * kx; M32 = f.Y.R0 + (h - float32 f.Y.D0) * ky }
+            Scene.Clip(f.Plot, Scene.Transform(m, view.Value.Scene.Value))
+        member _.Probe(f, x, y) =
+            let l = view.Value.Layout.Peek
+            match Diagram.boxAt l (float32 x) (size.Y - float32 y) with
+            | Some id -> ([], [ ("node " + string (id / 1024), theme.Muted) ])
+            | None -> ([], [])
+        member _.Describe(_) =
+            "Diagram of the data graph of a document: " + string view.Value.Layout.Peek.Boxes.Length + " nodes and " + string view.Value.Layout.Peek.Routes.Length + " links"
+
 /// The demo: the selection, the viewport of each chart, the pointer, and the frame plumbing.
 type Demo() =
     let host = CanvasHost(CanvasTextEngine())
-    let charts : IChart[] = [| SeriesChart(); StreamChart(); ScatterChart(); CandleChart() |]
+    let charts : IChart[] = [| SeriesChart(); StreamChart(); ScatterChart(); CandleChart(); ScienceScatterChart(); LiveHistogramChart(); FieldChart(); GraphChart() |]
     let ready = Array.zeroCreate<bool> charts.Length
     let infos = Array.create charts.Length ""
     // the viewport of each chart: what part of the data is shown
