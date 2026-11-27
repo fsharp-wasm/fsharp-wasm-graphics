@@ -91,6 +91,14 @@ every link that can be drawn has a line, left to right is top down turned, and t
 Time, 2026-11-27 (one thread, .NET 10, a Release build, while another build ran on the machine, so read them as an upper bound): 100 boxes and 200 links 27 ms, 500 and 1000 links 327 ms,
 2000 and 4000 links 1.4 s.
 
+## The demo
+
+`demo/FSharp.Graphics.Browser.Charts` (the page `demos/charts` of fsharp-wasm-runtime) has four tabs for these libraries: a scatter coloured by value (400 000 points: a density map beyond 20 000 in
+view, markers and a colour bar when zoomed in), a live histogram of a column of a document that grows by 4 000 samples a second (`Live.histogram` and `Live.bars`: 200 000 samples are appended and
+counted in 8 ms, measured in headless Chromium on 2026-11-27; a zoom runs the scene and not the counts), a field of 480 x 360 values with its contours and a colour bar, and the data graph of a small
+document as a diagram (16 nodes and 42 links, laid out in 3 ms) that is panned and zoomed like a chart. `tests/e2e/charts.mjs` of fsharp-wasm-runtime drives all eight tabs in Chromium; the module
+is 194 KB without its names (the data graph engine, the layout and the science charts included).
+
 ## What it does not do yet
 
 - No time axis for samples at irregular x (the pyramid wants regular spacing, as in [charts.md](charts.md)).
