@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- FSharp.Graphics.Diagrams: node-link diagrams.  `Layered` places boxes in layers and routes the links between them (cycles broken, crossings reduced, coordinates by the least squares
+       that keep the boxes apart); `Diagram` draws the result as a scene, with the theme of the charts.  Pure: numbers in, numbers and a scene out; the graph of a document that it draws
+       is FSharp.Graphics.Charts.Live. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FSharp.Graphics.Diagrams</RootNamespace>
+    <AssemblyName>FSharp.Graphics.Diagrams</AssemblyName>
+    <Nullable>enable</Nullable>
+    <Optimize>true</Optimize>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>true</IsPackable>
+    <Description>Node-link diagrams from the scene graph: a layered layout (cycles broken, crossings reduced, boxes kept apart by least squares) and the links routed through it. Runs under .NET and as WebAssembly GC.</Description>
+    <PackageTags>diagrams;graph-layout;visualization</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Layered.fs" />
+    <Compile Include="Diagram.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FSharp.Graphics.Charts/FSharp.Graphics.Charts.fsproj" />
+  </ItemGroup>
+</Project>
