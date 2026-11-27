@@ -1,11 +1,11 @@
 name: Release
 
-# Tagging vX.Y.Z (on main) packs the libraries, pushes them to nuget.org when the secret NUGET_API_KEY is set, and attaches them to a GitHub release.
+# Tagging vX.Y.Z (on main) packs the libraries, pushes them to nuget.org (the secret NUGET_API_KEY; a tag run without it fails), and attaches them to a GitHub release.
 # Run by hand (Actions, Release, Run workflow) it is a dry run: the same pack and smoke test, the packages uploaded as an artifact, and nothing published.
 #
 # The tests of the commit are CI's (read before the tag is made); this workflow packs and restores what it made.
-# Icons builds on FSharp.Wasm.Icons of fsharp-wasm-core, by the same version: fsharp-wasm-core is released first, with the same tag, and a push here is
-# refused until nuget.org has it (a package whose dependency cannot be restored is worse than no package).  The smoke test uses the packages of the pinned
+# Icons builds on FSharp.Wasm.Icons of fsharp-wasm-core and Host on GlyphAura of fsharp-glyph-aura, by the same version: those are released first, with the
+# same tag, and a push here waits until nuget.org has them (a package whose dependency cannot be restored is worse than no package).  The smoke test uses the packages of the pinned
 # submodule lib/fsharp-wasm-core, so a dry run works before that release exists.
 on:
   push:
@@ -54,16 +54,29 @@ jobs:
           name: nuget-packages
           path: dist/nupkg/*.nupkg
 
-      - name: fsharp-wasm-core is on nuget.org at this version
-        if: github.ref_type == 'tag' && env.NUGET_API_KEY != ''
+      # A release that publishes nothing is a failed release: without the key a tag run stops here, red, before anything is pushed or released.
+      - name: The key for nuget.org is there
+        if: github.ref_type == 'tag' && env.NUGET_API_KEY == ''
+        run: |
+          echo "::error::the secret NUGET_API_KEY is not visible to this repository: an organisation secret has to be given access to fsharp-wasm-graphics"
+          exit 1
+
+      # nuget.org lists a package some minutes after the push; the tags of the three repositories are pushed one after the other, so wait for them here.
+      - name: What these packages depend on is on nuget.org at this version
+        if: github.ref_type == 'tag'
         run: |
           v="${{ steps.version.outputs.version }}"
-          curl -fsS https://api.nuget.org/v3-flatcontainer/fsharp.wasm.icons/index.json | jq -e --arg v "${v,,}" '.versions | index($v)' > /dev/null \
-            || { echo "::error::FSharp.Wasm.Icons $v is not on nuget.org: release fsharp-wasm-core with the same version first"; exit 1; }
+          for id in fsharp.wasm.icons glyphaura; do
+            for attempt in $(seq 1 45); do
+              curl -fsS "https://api.nuget.org/v3-flatcontainer/$id/index.json" 2>/dev/null | jq -e --arg v "${v,,}" '.versions | index($v)' > /dev/null && continue 2
+              echo "$id $v is not on nuget.org yet (try $attempt of 45)"; sleep 20
+            done
+            echo "::error::$id $v is not on nuget.org: release fsharp-wasm-core and fsharp-glyph-aura with the same version first"; exit 1
+          done
 
-      # needs the NUGET_API_KEY secret; without it the step is skipped.  --skip-duplicate: a run that is repeated after a half-way failure pushes only what is missing.
+      # --skip-duplicate: a run that is repeated after a half-way failure pushes only what is missing.
       - name: Push to nuget.org
-        if: github.ref_type == 'tag' && env.NUGET_API_KEY != ''
+        if: github.ref_type == 'tag'
         run: dotnet nuget push "dist/nupkg/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: GitHub release
