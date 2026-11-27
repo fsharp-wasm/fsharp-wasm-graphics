@@ -10,11 +10,14 @@ open FSharp.Graphics.Charts
 
 let mutable private failures = 0
 let mutable private count = 0
+/// the number of the first check that failed (0: none): the name is printed by the .NET run, and a WebAssembly host cannot read it, so it is given this number
+let mutable private firstFailure = 0
 
 let private check (name: string) (ok: bool) =
     count <- count + 1
     if not ok then
         failures <- failures + 1
+        if firstFailure = 0 then firstFailure <- count
         printfn "  FAIL  %s" name
 
 let private near (a: float) (b: float) = abs (a - b) < 1.0e-6 * (1.0 + abs a + abs b)
@@ -360,6 +363,142 @@ let private instrumentTests () =
     check "instruments: a key figure is named with its value, and its change and its state are its description"
         (match semantics card with Some s -> s.Name = "Throughput: 1 204 / h" && s.Description = "+4.2 % since the hour, normal" | None -> false)
 
+
+let private luminance (c: Color) : float = 0.2126 * float c.R + 0.7152 * float c.G + 0.0722 * float c.B
+
+let private colormapTests () =
+    let m = Colormap.viridis
+    check "a colour map starts with its first colour and ends with its last" (Colormap.at m 0.0 = m.Stops.[0] && Colormap.at m 1.0 = m.Stops.[9])
+    check "a step of the map is its stop: 1/9 of the way is the second" (Colormap.at m (1.0 / 9.0) = m.Stops.[1])
+    check "outside [0, 1] the nearest end, NaN the colour for what is missing" (Colormap.at m -3.0 = m.Stops.[0] && Colormap.at m 7.0 = m.Stops.[9] && Colormap.at m nan = m.Missing)
+    check "halfway between two stops is their mean" (let a = m.Stops.[4] in let b = m.Stops.[5] in let c = Colormap.at m 0.5 in abs (int c.R - (int a.R + int b.R) / 2) <= 1 && abs (int c.G - (int a.G + int b.G) / 2) <= 1)
+    let lum = Array.init 100 (fun i -> luminance (Colormap.at m (float i / 99.0)))
+    check "viridis grows lighter all the way (it can be read in grey)" (lum |> Array.pairwise |> Array.forall (fun (a, b) -> b >= a - 1.0e-9))
+    check "scaled maps a range onto the map, and a flat range to its middle" (Colormap.scaled m 10.0 20.0 10.0 = m.Stops.[0] && Colormap.scaled m 10.0 20.0 20.0 = m.Stops.[9] && Colormap.scaled m 5.0 5.0 5.0 = Colormap.at m 0.5)
+    let ramp = Colormap.ramp m 12
+    check "a ramp for a density map is transparent first and then the map" (ramp.Length = 12 && ramp.[0] = Color.Transparent && ramp.[1] = m.Stops.[0] && ramp.[11] = m.Stops.[9])
+    check "a reversed map runs the other way" (Colormap.at (Colormap.reversed m) 0.0 = m.Stops.[9])
+
+let private axisTests () =
+    let s = Log.create 1.0 1000.0 0.0f 300.0f
+    check "a log scale puts each decade the same distance on" (near (float (Log.map s 10.0)) 100.0 && near (float (Log.map s 100.0)) 200.0 && Log.map s 1000.0 = 300.0f)
+    check "and takes a pixel back to the value" (near (Log.invert s 150.0f) (Math.Pow(10.0, 1.5)) && near (Log.invert s (Log.map s 37.0)) 37.0)
+    check "a value that is not above zero has no place" (Single.IsNaN(Log.map s 0.0) && Single.IsNaN(Log.map s -5.0))
+    let t = Log.ticks 1.0 100.0
+    check "two decades have the 1, 2 and 5 of each as ticks, the powers of ten major" (t |> Array.map fst = [| 1.0; 2.0; 5.0; 10.0; 20.0; 50.0; 100.0 |] && t |> Array.filter snd |> Array.map fst = [| 1.0; 10.0; 100.0 |])
+    check "six decades have only the powers of ten" (let ticks = Log.ticks 1.0e-3 1.0e3 in ticks.Length = 7 && ticks |> Array.forall snd)
+    check "a range that is not above zero has no ticks" ((Log.ticks 0.0 10.0).Length = 0 && (Log.ticks 10.0 1.0).Length = 0)
+    check "a tick is text: 1, 100, 1k, 2k, 25, 0.5, 0.01, 0.002, 1e-5" (Log.label 1.0 = "1" && Log.label 100.0 = "100" && Log.label 1000.0 = "1k" && Log.label 2000.0 = "2k" && Log.label 25.0 = "25"
+                                                                          && Log.label 0.5 = "0.5" && Log.label 0.01 = "0.01" && Log.label 0.002 = "0.002" && Log.label 1.0e-5 = "1e-5")
+    check "the civil date of the epoch, of a leap day, of a day before it" (Time.civil 0L = (1970, 1, 1) && Time.civil 11016L = (2000, 2, 29) && Time.civil 19358L = (2023, 1, 1) && Time.civil -1L = (1969, 12, 31))
+    check "a time as date and time of day, UTC" (Time.format 0.0 = "1970-01-01 00:00:00" && Time.format 1704067200.0 = "2024-01-01 00:00:00" && Time.format -1.0 = "1969-12-31 23:59:59" && Time.format 951782399.0 = "2000-02-28 23:59:59")
+    check "an hour with six ticks has a step of ten minutes, the ticks are its multiples" (Time.step 0.0 3600.0 6 = 600.0 && (Time.values 0.0 3600.0 600.0).Length = 7 && (Time.values 100.0 1300.0 600.0) = [| 600.0; 1200.0 |])
+    check "a day with ticks of an hour is read as hours and minutes, a month as month and day, years as dates"
+        (Time.label 3600.0 (3600.0 * 5.0) = "05:00" && Time.label 5.0 65.0 = "00:01:05" && Time.label 86400.0 (86400.0 * 40.0) = "02-10" && Time.label 31536000.0 63072000.0 = "1972-01-01")
+    check "a range of years takes the steps of a year" (Time.step 0.0 (31536000.0 * 10.0) 5 = 31536000.0 && Time.step 0.0 0.5 5 = 1.0)
+
+let private statsTests () =
+    let q (xs: float32[]) (p: float) = Stats.quantile (Stats.sorted xs xs.Length) p
+    check "quantiles interpolate between neighbours (the default of NumPy and R)" (q [| 1.0f; 2.0f; 3.0f; 4.0f; 5.0f |] 0.25 = 2.0 && q [| 1.0f; 2.0f; 3.0f; 4.0f; 5.0f |] 0.75 = 4.0 && q [| 4.0f; 1.0f; 3.0f; 2.0f |] 0.5 = 2.5)
+    check "the ends are the extremes, one value is its own quantile, none is NaN" (q [| 3.0f; 9.0f; 1.0f |] 0.0 = 1.0 && q [| 3.0f; 9.0f; 1.0f |] 1.0 = 9.0 && q [| 7.0f |] 0.3 = 7.0 && Double.IsNaN(q [||] 0.5))
+    check "values that are not finite are not counted" ((Stats.sorted [| 1.0f; nanf; 3.0f; infinityf; 2.0f |] 5) = [| 1.0f; 2.0f; 3.0f |] && Stats.mean [| 1.0f; nanf; 3.0f |] 3 = 2.0)
+    let xs = [| 2.0f; 4.0f; 4.0f; 4.0f; 5.0f; 5.0f; 7.0f; 9.0f |]
+    check "the mean and the sample standard deviation" (Stats.mean xs 8 = 5.0 && near (Stats.stddev xs 8) (Math.Sqrt(32.0 / 7.0)))
+    let b = Stats.box (Array.append (Array.init 10 (fun i -> float32 (i + 1))) [| 100.0f |]) 11
+    check "a box has its quartiles, its whiskers within 1.5 interquartile ranges, and what is beyond them" (b.Count = 11 && b.Q1 = 3.5 && b.Median = 6.0 && b.Q3 = 8.5 && b.LowWhisker = 1.0 && b.HighWhisker = 10.0 && b.Max = 100.0 && b.Outliers = [| 100.0 |])
+    check "the box of nothing is NaN, of one value that value"
+        ((Stats.box [||] 0 |> fun e -> e.Count = 0 && Double.IsNaN e.Median) && (Stats.box [| 5.0f |] 1 |> fun e -> e.Median = 5.0 && e.Outliers.Length = 0))
+
+let private histogramTests () =
+    let h = Histogram(0.0, 10.0, 5)
+    for v in [ 0.0; 1.99; 2.0; 9.99; 10.0; 10.5; -1.0; nan; infinity ] do h.Add v
+    check "values fall in the bins [0,2) [2,4) ... and the top edge in the last" (h.Counts = [| 2; 1; 0; 0; 2 |] && h.Total = 5)
+    check "values outside are counted apart, NaN and infinity are not counted" (h.Underflow = 1 && h.Overflow = 1)
+    check "an edge is where its bin begins" (h.Edge 0 = 0.0 && h.Edge 2 = 4.0 && h.Edge 5 = 10.0 && h.BinOf 4.0 = 2 && h.BinOf 3.999 = 1 && h.BinOf -0.1 = -1 && h.BinOf 10.1 = 5)
+    let xs = samples 7 20000
+    let whole = Histogram.OfArray(xs, xs.Length, 20)
+    let grown = Histogram(whole.Lo, whole.Hi, 20)
+    for k in 0 .. 19 do grown.AddMany(xs, k * 1000, 1000)
+    check "a histogram that grew by pieces is the histogram of the whole" (grown.Counts = whole.Counts && grown.Total = whole.Total && whole.Total = xs.Length)
+    let naive = Array.zeroCreate<int> 20
+    for x in xs do naive.[min 19 (int (Math.Floor((float x - whole.Lo) / whole.Width)))] <- naive.[min 19 (int (Math.Floor((float x - whole.Lo) / whole.Width)))] + 1
+    check "and the counts are those of a loop over the values" (naive = whole.Counts)
+    check "by Sturges' rule a thousand values have eleven bins; no finite value is a bin over 0..1" ((Histogram.OfArray(samples 3 1000, 1000, 0)).Bins = 11 && (Histogram.OfArray([| nanf |], 1, 4)).Hi = 1.0)
+    h.Clear()
+    check "a cleared histogram is empty" (h.Total = 0 && h.Underflow = 0 && h.Max = 0)
+
+let private scienceSceneTests () =
+    let th = Theme.dark (FontId 0UL)
+    let frame = Frame.create 600.0f 400.0f 60.0f 20.0f 20.0f 40.0f (0.0, 100.0) (0.0, 100.0)
+    let xs = [| 10.0f; 20.0f; 150.0f; nanf; 90.0f |]
+    let ys = [| 10.0f; 20.0f; 50.0f; 50.0f; 90.0f |]
+    check "the points in view are counted: not the one out of range nor the NaN" (Scatter.visible frame xs ys 5 = 3)
+    check "a marker for each point in view" (shapes (Scatter.scene frame xs ys 5 3.0f (Scatter.uniform th.Up)) = 3)
+    let m = Colormap.viridis
+    let byV = Scatter.byValue m 0.0 10.0 [| 0.0f; 10.0f; 5.0f |]
+    check "a point takes its colour from its value" (byV 0 = m.Stops.[0] && byV 1 = m.Stops.[9] && byV 2 = Colormap.at m 0.5)
+    let n = 30000
+    let bx = samples 1 n |> Array.map (fun v -> v * 0.5f + 50.0f)
+    let by = samples 2 n |> Array.map (fun v -> v * 0.5f + 50.0f)
+    check "more points in view than a scene holds are a density map, not the first of them" (Scatter.visible frame bx by n > Scatter.MaxMarkers && shapes (Scatter.auto frame bx by n 2.0f (Scatter.uniform th.Up) m) <> Scatter.MaxMarkers
+                                                                                           && shapes (Scatter.auto frame bx by n 2.0f (Scatter.uniform th.Up) m) <= 150 * 85)
+    check "few points are markers, whatever auto is asked" (shapes (Scatter.auto frame xs ys 5 3.0f (Scatter.uniform th.Up) m) = 3)
+    let bxs = [| 0.0f; 25.0f; 50.0f; 75.0f; 100.0f |]
+    let band = Bands.scene frame bxs [| 10.0f; 20.0f; nanf; 40.0f; 50.0f |] [| 30.0f; 40.0f; 60.0f; 60.0f; 70.0f |] 5 th.Up
+    check "a band is one polygon of two edges, a row with a NaN left out" (match polygons band with [ p ] -> p.Length = 8 | _ -> false)
+    check "a band of one row is nothing" (match Bands.scene frame bxs bxs bxs 1 th.Up with Empty -> true | _ -> false)
+    let eb = ErrorBars.scene frame [| 10.0f; 20.0f; 30.0f |] [| 50.0f; 50.0f; 50.0f |] [| 5.0f; -1.0f; nanf |] 3 th.Up 6.0f
+    check "an error bar is a line and two caps; a negative or NaN error has none" (shapes eb = 3)
+    let boxes = [| Stats.box (Array.append (Array.init 10 (fun i -> float32 (i + 1))) [| 100.0f |]) 11; Stats.box [||] 0 |]
+    let bp = BoxPlot.scene th frame [| "a"; "b" |] boxes th.Palette
+    check "a box plot draws the whiskers and caps, the box and the median, the outlier; a group with nothing, nothing" (shapes bp >= 7 && shapes bp <= 7 + 2)
+    let hist = Histogram(0.0, 10.0, 5)
+    for v in [ 1.0; 1.5; 3.0; 3.5; 3.9; 9.0 ] do hist.Add v
+    let hf = Frame.create 600.0f 400.0f 60.0f 20.0f 20.0f 40.0f (0.0, 10.0) (HistogramBars.yRange hist)
+    check "a bar for each bin that has something" (shapes (HistogramBars.scene hf hist th.Up) = 3 && snd (HistogramBars.yRange hist) > 3.0)
+
+let private fieldTests () =
+    let th = Theme.dark (FontId 0UL)
+    let frame = Frame.create 600.0f 400.0f 60.0f 20.0f 20.0f 40.0f (0.0, 10.0) (0.0, 10.0)
+    let m = Colormap.viridis
+    let flat = Array.create 100 5.0f
+    check "a field of one value is a rectangle for each row" (shapes (Raster.scene frame (0.0, 10.0) (0.0, 10.0) flat 10 10 m (0.0, 10.0)) = 10)
+    let checker = Array.init 100 (fun i -> if ((i % 10) + (i / 10)) % 2 = 0 then 0.0f else 10.0f)
+    check "a checkerboard is a rectangle for each cell" (shapes (Raster.scene frame (0.0, 10.0) (0.0, 10.0) checker 10 10 m (0.0, 10.0)) = 100)
+    let holes = Array.copy flat
+    holes.[3] <- nanf
+    holes.[4] <- nanf
+    check "cells that are NaN are not drawn: the row they are in breaks into the runs before and after" (shapes (Raster.scene frame (0.0, 10.0) (0.0, 10.0) holes 10 10 m (0.0, 10.0)) = 11)
+    check "the range of a field is that of its finite values" (Raster.range [| 3.0f; nanf; -2.0f; 7.5f |] = (-2.0, 7.5) && Raster.range [| nanf |] = (0.0, 1.0))
+    let f4 = Array.init 16 float32
+    let (d, c, r) = Raster.downsample f4 4 4 2 2
+    check "a field is averaged down in blocks: 4 x 4 to 2 x 2 is the mean of each block" (c = 2 && r = 2 && d = [| 2.5f; 4.5f; 10.5f; 12.5f |])
+    check "a field that is small enough stays as it is, a block of NaN is NaN" (let (same, _, _) = Raster.downsample f4 4 4 8 8 in obj.ReferenceEquals(same, f4)
+                                                                                && (let (e, _, _) = Raster.downsample [| nanf; nanf; 1.0f; 3.0f |] 2 2 1 1 in near (float e.[0]) 2.0))
+    let bar = ColorBar.scene th m (0.0, 10.0) 620.0f 30.0f 14.0f 200.0f (fun step v -> Format.tick step v)
+    check "a colour bar is a slice for each step of the map, a tick and a label for each value" (shapes bar >= 100)
+    check "nice levels are the ticks of the range" (Contour.niceLevels 0.0 10.0 5 = [| 0.0; 2.0; 4.0; 6.0; 8.0; 10.0 |] && (Contour.niceLevels 3.0 3.0 4).Length = 0)
+
+    // a bowl: the contour at 9 is the circle of radius 3 round (5, 5)
+    let bowl = Array.init (11 * 11) (fun i -> let x = float (i % 11) - 5.0 in let y = float (i / 11) - 5.0 in float32 (x * x + y * y))
+    let rings = Contour.lines bowl 11 11 9.0f
+    check "the contour of a bowl is one closed line" (rings.Length = 1 && (let l = rings.Head in l.Length > 8 && l.[0] = l.[l.Length - 1]))
+    check "every point of it is where the level is, to the error of a linear step" (rings.Head |> Array.forall (fun p -> let dx = float p.X - 5.0 in let dy = float p.Y - 5.0 in abs (Math.Sqrt(dx * dx + dy * dy) - 3.0) < 0.3))
+    check "a level above all of the field has no line" ((Contour.lines bowl 11 11 1000.0f).Length = 0 && (Contour.lines bowl 11 11 -1.0f).Length = 0)
+    let ramp = Array.init 25 (fun i -> float32 (i % 5))
+    let straight = Contour.lines ramp 5 5 2.5f
+    check "a level across a plane is one open line from edge to edge" (straight.Length = 1 && straight.Head.Length = 5 && straight.Head |> Array.forall (fun p -> near (float p.X) 2.5)
+                                                                    && (let ys = straight.Head |> Array.map (fun p -> p.Y) in Array.min ys = 0.0f && Array.max ys = 4.0f))
+    let twoBlobs = Array.init (11 * 5) (fun i -> let x = float (i % 11) in let y = float (i / 11) - 2.0 in float32 (max (3.0 - ((x - 2.0) * (x - 2.0) + y * y)) (3.0 - ((x - 8.0) * (x - 8.0) + y * y))))
+    check "two separate hills have a line each" ((Contour.lines twoBlobs 11 5 1.0f).Length = 2)
+    let saddle = [| 1.0f; -1.0f; -1.0f; 1.0f |]
+    check "a saddle cell makes two lines, joined by neither" ((Contour.lines saddle 2 2 0.0f).Length = 2)
+    let hole = Array.copy bowl
+    hole.[5 * 11 + 5] <- nanf
+    check "a cell with a NaN corner has no line" ((Contour.lines hole 11 11 9.0f).Length = 1 && (Contour.lines [| 0.0f; nanf; 1.0f; 1.0f |] 2 2 0.5f).Length = 0)
+    let contourScene = Contour.scene frame (0.0, 10.0) (0.0, 10.0) bowl 11 11 [| 4.0; 9.0; 16.0 |] m (0.0, 50.0) 1.5f
+    check "contours are a polygon each, coloured by their level" (shapes contourScene = (Contour.lines bowl 11 11 4.0f).Length + (Contour.lines bowl 11 11 9.0f).Length + (Contour.lines bowl 11 11 16.0f).Length)
+
 let run () : int =
     scaleTests ()
     pyramidTests ()
@@ -367,6 +506,12 @@ let run () : int =
     geometryTests ()
     sceneTests ()
     instrumentTests ()
+    colormapTests ()
+    axisTests ()
+    statsTests ()
+    histogramTests ()
+    scienceSceneTests ()
+    fieldTests ()
     printfn "%d checks, %d failed" count failures
     failures
 
@@ -374,6 +519,8 @@ let run () : int =
 let charts_run () : int = run ()
 /// how many checks the last run made (the host checks that it is not zero)
 let charts_checks () : int = count
+/// the number of the first check that failed, in the order the .NET run prints them (0: none)
+let charts_first_failure () : int = firstFailure
 #else
 [<EntryPoint>]
 let main _ = if run () = 0 then 0 else 1

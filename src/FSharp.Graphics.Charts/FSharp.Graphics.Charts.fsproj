@@ -15,10 +15,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Scale.fs" />
+    <Compile Include="Axis.fs" />
     <Compile Include="Pyramid.fs" />
     <Compile Include="Density.fs" />
+    <Compile Include="Colormap.fs" />
+    <Compile Include="Stats.fs" />
     <Compile Include="Geometry.fs" />
     <Compile Include="Chart.fs" />
+    <Compile Include="Science.fs" />
     <Compile Include="Instruments.fs" />
   </ItemGroup>
   <ItemGroup>

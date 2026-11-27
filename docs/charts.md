@@ -83,7 +83,7 @@ the frame before). A GPU canvas will be faster; this one is what CI can measure.
 ## What it does not do yet
 
 - x is regular (`X0 + i * Dx`); samples at irregular x need a binary search from pixel to index, which the pyramid does not yet have a front for.
-- No logarithmic or time axis; no gaps for missing samples (NaN is not handled).
+- No gaps for missing samples in a line (NaN is not handled by the pyramid). Logarithmic and time axes, histograms, scatter plots, rasters and contours are in [science-charts.md](science-charts.md).
 - A ribbon can overlap itself at a sharp turn; the Canvas host fills it with the nonzero rule, which is right. The WebGPU host draws simple polygons only, so a ribbon with a hairpin may be drawn wrong
   there (the host counts what it cannot draw: `gpuStats().unsupported`).
 - The legend does not toggle series, and there is no selection or brush yet.
